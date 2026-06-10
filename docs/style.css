@@ -180,7 +180,7 @@ label { font-size: 12px; color: var(--muted); text-transform: uppercase; }
 .panel-foot { display: flex; gap: 8px; justify-content: flex-end; flex: none; }
 
 /* ---------- overlays ---------- */
-#overlay, #rules-modal, #deed-modal, #local-modal {
+#overlay, #rules-modal, #deed-modal, #local-modal, #rent-modal {
   position: fixed; inset: 0; background: rgba(10, 12, 18, 0.75);
   display: flex; align-items: center; justify-content: center;
   z-index: 50; padding: 16px;
@@ -207,6 +207,15 @@ label { font-size: 12px; color: var(--muted); text-transform: uppercase; }
 .deed-table td { border-bottom: 1px solid #4a5468; padding: 3px 4px; }
 .deed-table td.num { text-align: right; color: var(--accent); }
 .deed-table tr.hl td { background: #1a212c; color: #fff; }
+
+#rent-modal { z-index: 60; }
+.rent-title { font-size: 22px; margin-bottom: 6px; }
+.rent-title.pay { color: var(--danger); }
+.rent-title.collect { color: var(--accent2); }
+.rent-hotel { font-size: 15px; color: var(--ink); margin-bottom: 10px; }
+.rent-math { font-size: 14px; color: var(--muted); margin-bottom: 4px; }
+.rent-amount { font-size: 34px; color: var(--accent); margin: 8px 0 12px; }
+.rent-status { font-size: 14px; margin-bottom: 14px; }
 
 #toast {
   position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%);

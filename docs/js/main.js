@@ -11,7 +11,7 @@
     sel: null,            // {squares:[], make:fn(sq)->action}
     quickBots: false, auctionTimer: null, wasEnded: false,
     mode: 'online',       // 'online' (Net) or 'local' (in-browser engine)
-    conn: window.Net, localBidder: null
+    conn: window.Net, localBidder: null, lastStaySeq: 0, rentTimer: null
   };
 
   /* ---------- helpers ---------- */
@@ -100,6 +100,7 @@
     S.wasEnded = m.game.phase === 'ended';
     if (fresh) { S.boardReady = false; }
     S.sel = null;
+    maybeShowRent(fresh);
     if (S.mode === 'local') {
       // Hot-seat: "you" is whoever the pending decision belongs to (if human).
       var pd = m.game.pending;
@@ -208,9 +209,10 @@
       } else {
         var names = { easy: ['Sunny', 'Pebble'], medium: ['Marco', 'Vera'], hard: ['Magnus', 'Vex'] };
         var used = players.map(function (p) { return p.name; });
-        var nm = (names[kind].filter(function (n) { return used.indexOf(n) < 0; })[0] ||
-          'Bot ' + (i + 1)) + ' (' + kind + ')';
-        players.push({ name: nm, bot: kind });
+        var base = names[kind].filter(function (n) {
+          return used.indexOf(n + ' (' + kind + ')') < 0;
+        })[0] || 'Bot ' + (i + 1);
+        players.push({ name: base + ' (' + kind + ')', bot: kind });
       }
     }
     if (players.length < 2) return toast('Add at least one opponent.');
@@ -599,6 +601,51 @@
     modal.addEventListener('click', function (ev) {
       if (ev.target === modal) modal.classList.add('hidden');
     });
+  }
+
+  /* ---------- rent modal ---------- */
+  function maybeShowRent(fresh) {
+    var st = S.view && S.view.lastStay;
+    if (!st || !st.seq || st.seq === S.lastStaySeq) return;
+    S.lastStaySeq = st.seq;
+    if (fresh) return; // don't replay an old payment when (re)joining
+    var humans = S.mode === 'local' ? Local.humanIds() : [S.playerId];
+    var iPay = humans.indexOf(st.player) >= 0;
+    var iCollect = humans.indexOf(st.owner) >= 0;
+    if (!iPay && !iCollect) return;
+    showRentModal(st, iPay, iCollect);
+  }
+
+  function showRentModal(st, iPay, iCollect) {
+    var modal = $('rent-modal');
+    var payer = playerById(st.player), owner = playerById(st.owner);
+    var h = G.HOTELS[st.plotId];
+    modal.innerHTML = '';
+    modal.classList.remove('hidden');
+    var c = el('div', 'modal-card center', null, modal);
+    c.style.borderColor = (iCollect && !iPay) ? '#3fae49' : '#e0413e';
+
+    el('div', 'rent-title ' + (iPay ? 'pay' : 'collect'),
+      iPay && iCollect ? '🏨 Rent changes hands!'
+        : iPay ? '💸 Rent due!' : '💰 Rent collected!', c);
+    el('div', 'rent-hotel', payer.name + ' stays ' + st.nights + ' night' +
+      (st.nights > 1 ? 's' : '') + ' at ' + owner.name + "'s " + h.name +
+      ' ' + '★'.repeat(h.stars), c);
+    el('div', 'rent-math', st.nights + ' night' + (st.nights > 1 ? 's' : '') +
+      ' × ' + fmt(st.rate) + '/night', c);
+    el('div', 'rent-amount', fmt(st.owed), c);
+    el('div', 'rent-status', st.covered
+      ? (iPay ? 'Paid to ' + owner.name + '.' : payer.name + ' pays you in full!')
+      : payer.name + ' cannot cover the bill and must auction assets!', c);
+    btn('OK', 'primary', closeRentModal, c);
+
+    clearTimeout(S.rentTimer);
+    S.rentTimer = setTimeout(closeRentModal, 6500);
+    modal.onclick = function (ev) { if (ev.target === modal) closeRentModal(); };
+  }
+  function closeRentModal() {
+    clearTimeout(S.rentTimer);
+    $('rent-modal').classList.add('hidden');
   }
 
   /* ---------- misc buttons ---------- */

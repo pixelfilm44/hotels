@@ -384,7 +384,9 @@ class Game {
         const rate = this.rateOf(pd.plotId);
         const owed = nights * rate;
         const owner = this.byId(this.plots[pd.plotId].owner);
-        this.lastStay = { player: p.id, plotId: pd.plotId, nights, rate, owed };
+        this.staySeq = (this.staySeq || 0) + 1;
+        this.lastStay = { seq: this.staySeq, player: p.id, owner: owner.id,
+          plotId: pd.plotId, nights, rate, owed, covered: p.cash >= owed };
         this.addLog(p.name + ' checks in at ' + G.HOTELS[pd.plotId].name + ' for ' +
           nights + ' night' + (nights > 1 ? 's' : '') + ' — the bill is ' + fmt(owed) + '.');
         this.seq++;
