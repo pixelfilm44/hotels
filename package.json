@@ -1,0 +1,13 @@
+{
+  "name": "hotels-online",
+  "version": "1.0.0",
+  "description": "Online multiplayer pixel-art version of the Hotels board game",
+  "private": true,
+  "scripts": {
+    "start": "node server/server.js",
+    "sim": "node test/sim.js"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}

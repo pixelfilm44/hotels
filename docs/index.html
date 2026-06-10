@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1d2430">
+<title>HOTELS — Pixel Tycoon</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- HOME -->
+<div id="screen-home" class="screen">
+  <div class="home-box">
+    <h1 class="pixel-title">HOTELS</h1>
+    <p class="tagline">Build hotels. Charge outrageous rates. Bankrupt your friends.</p>
+    <div class="card">
+      <label for="name-input">Your name</label>
+      <input id="name-input" maxlength="12" placeholder="Player" autocomplete="off">
+      <button id="btn-local" class="btn primary">Play vs Bots / Hot-seat</button>
+      <div id="online-box" class="online-box">
+        <label>Online multiplayer</label>
+        <button id="btn-create" class="btn">Create Online Game</button>
+        <div class="join-row">
+          <input id="code-input" placeholder="CODE" maxlength="4" autocomplete="off">
+          <button id="btn-join" class="btn">Join Game</button>
+        </div>
+        <button id="btn-bots" class="btn">Online Lobby vs Bots</button>
+        <p id="online-note" class="muted hidden"></p>
+      </div>
+    </div>
+    <button id="btn-rules-home" class="btn link">How to play</button>
+    <p id="home-status" class="muted"></p>
+  </div>
+</div>
+
+<!-- LOBBY -->
+<div id="screen-lobby" class="screen hidden">
+  <div class="home-box">
+    <h2 class="pixel-title small">LOBBY</h2>
+    <div class="card">
+      <div class="code-row">
+        <span>Room code:</span>
+        <span id="lobby-code" class="code"></span>
+        <button id="btn-copy" class="btn mini">Copy link</button>
+      </div>
+      <div id="lobby-players"></div>
+      <div id="lobby-host" class="host-controls hidden">
+        <div class="addbot-row">
+          <select id="bot-diff">
+            <option value="easy">Easy bot</option>
+            <option value="medium" selected>Medium bot</option>
+            <option value="hard">Hard bot</option>
+          </select>
+          <button id="btn-addbot" class="btn">+ Add</button>
+        </div>
+        <button id="btn-start" class="btn primary">Start Game</button>
+      </div>
+      <p id="lobby-hint" class="muted">2–4 players. Share the code or link with friends, or add bots.</p>
+    </div>
+    <button id="btn-leave" class="btn link">Leave</button>
+  </div>
+</div>
+
+<!-- GAME -->
+<div id="screen-game" class="screen hidden">
+  <div id="board-wrap"></div>
+  <aside id="panel">
+    <div id="prompt" class="prompt"></div>
+    <div id="dice-row"></div>
+    <div id="players"></div>
+    <div id="log"></div>
+    <div class="panel-foot">
+      <button id="btn-rules-game" class="btn mini">Rules</button>
+      <button id="btn-quit" class="btn mini">Quit</button>
+    </div>
+  </aside>
+</div>
+
+<!-- overlays -->
+<div id="overlay" class="hidden"></div>
+<div id="toast" class="hidden"></div>
+
+<div id="rules-modal" class="hidden">
+  <div class="modal-card">
+    <h3>How to play</h3>
+    <div class="rules-body">
+      <p><b>Goal:</b> be the last player who isn't bankrupt.</p>
+      <p><b>Your turn:</b> roll the die and drive that many squares (you skip over occupied squares). Rolling a <b>6</b> gives an extra turn.</p>
+      <p><b>Buying land:</b> land on a square next to an unowned hotel plot to buy its deed (one deed per turn; you can build on it from your next turn). Land on a square next to an opponent's <i>unbuilt</i> land and you may force-buy it at half price.</p>
+      <p><b>Building:</b> land on a <b>PLANNING</b> square, pick one of your sites and how many stages to add, then roll the planning die: <span class="perm green">●</span> pay &amp; build, <span class="perm gold">H</span> build FREE, <span class="perm orange">×2</span> pay double, <span class="perm red">●</span> denied.</p>
+      <p><b>Leisure facility:</b> once a hotel is fully built you can add its facility at the start of any of your turns — no permission needed. It raises the nightly rate.</p>
+      <p><b>Entrances:</b> each time you pass <b>CITY HALL</b> you may buy one entrance per built hotel, placed on a free square beside it. <b>FREE DOOR</b> squares give one free entrance.</p>
+      <p><b>Getting paid:</b> when an opponent lands on your entrance they roll the die for the number of nights and pay <i>nights × nightly rate</i>.</p>
+      <p><b>Bank:</b> collect $2,000 every time you pass the bank (3+ player games only).</p>
+      <p><b>Debt:</b> if you can't pay, you must auction hotels (sold complete with buildings and entrances) to the highest bidder. Out of assets and cash? You're bankrupt.</p>
+    </div>
+    <button id="btn-rules-close" class="btn primary">Close</button>
+  </div>
+</div>
+
+<div id="deed-modal" class="hidden"></div>
+
+<div id="local-modal" class="hidden">
+  <div class="modal-card">
+    <h3>Local game setup</h3>
+    <p class="muted">Humans share this device (hot-seat). 2–4 players.</p>
+    <div id="local-slots"></div>
+    <div class="btn-row">
+      <button id="btn-local-start" class="btn primary">Start</button>
+      <button id="btn-local-cancel" class="btn">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script src="shared/gamedata.js"></script>
+<script src="shared/engine.js"></script>
+<script src="shared/bot.js"></script>
+<script src="js/sprites.js"></script>
+<script src="js/net.js"></script>
+<script src="js/local.js"></script>
+<script src="js/render.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
