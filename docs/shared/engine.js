@@ -27,6 +27,9 @@ class Game {
     this.pending = null;
     this.log = [];
     this.seq = 0;            // bumped on every successful action (timer guards)
+    this.speed = 1;          // bot pacing multiplier (1 or 3)
+    this.rollSeq = 0;
+    this.permSeq = 0;
     this.lastRoll = null;
     this.lastPerm = null;
     this.lastStay = null;
@@ -179,7 +182,8 @@ class Game {
   /* ---------- the move ---------- */
   doRoll(p) {
     const r = this.roll();
-    this.lastRoll = { player: p.id, value: r };
+    this.rollSeq++;
+    this.lastRoll = { seq: this.rollSeq, player: p.id, value: r };
     this.rolledSix = (r === 6);
     let sq = p.pos;
     const passed = [];
@@ -306,17 +310,20 @@ class Game {
         if (a.t !== 'rollPermission') return this.err('Roll the planning die.');
         const face = PERM_FACES[Math.floor(this.rng() * 6)];
         const pl = this.plots[pd.plotId], h = G.HOTELS[pd.plotId];
-        this.lastPerm = { player: p.id, face, plotId: pd.plotId };
         const what = pd.count === 1 ? G.STAGE_NAMES[pl.stages] : pd.count + ' stages';
+        let built = false, paid = 0;
         if (face === 'red') {
           this.addLog('Planning permission DENIED for ' + h.name + '. No building this time.');
         } else if (face === 'free') {
           pl.stages += pd.count;
+          built = true;
           this.addLog('Jackpot! The council builds the ' + what + ' at ' + h.name + ' for FREE.');
         } else if (face === 'double') {
           if (p.cash >= pd.cost * 2) {
             p.cash -= pd.cost * 2;
+            paid = pd.cost * 2;
             pl.stages += pd.count;
+            built = true;
             this.addLog('Permission granted at DOUBLE cost: ' + p.name + ' pays ' +
               fmt(pd.cost * 2) + ' to build the ' + what + ' at ' + h.name + '.');
           } else {
@@ -325,11 +332,17 @@ class Game {
           }
         } else { // green
           p.cash -= pd.cost;
+          paid = pd.cost;
           pl.stages += pd.count;
+          built = true;
           this.addLog('Permission granted! ' + p.name + ' pays ' + fmt(pd.cost) +
             ' to build the ' + what + ' at ' + h.name + '.');
         }
-        if (pl.stages >= h.stages.length && face !== 'red')
+        this.permSeq++;
+        this.lastPerm = { seq: this.permSeq, player: p.id, face, plotId: pd.plotId,
+          count: pd.count, cost: pd.cost, paid, built, what,
+          complete: pl.stages >= h.stages.length && built };
+        if (pl.stages >= h.stages.length && built)
           this.addLog(h.name + ' is fully built! (' + '★'.repeat(h.stars) + ')');
         this.advance(); return this.ok();
       }
@@ -447,8 +460,43 @@ class Game {
     this.pending = {
       type: 'auction', player: null, seller: seller.id, plotId,
       value: this.plotValue(plotId), high: null, passed: [],
-      deadline: Date.now() + G.AUCTION_MS, context
+      deadline: Date.now() + Math.round(G.AUCTION_MS / this.speed), context
     };
+  }
+
+  /* True when no human can still bid — fast-forwarding is then fair game. */
+  auctionHumansDone() {
+    const pd = this.pending;
+    if (!pd || pd.type !== 'auction') return false;
+    const min = pd.high ? pd.high.amount + 50 : 50;
+    return !this.players.some(p =>
+      !p.bot && p.alive && p.id !== pd.seller &&
+      (!pd.high || pd.high.player !== p.id) &&
+      pd.passed.indexOf(p.id) < 0 && p.cash >= min);
+  }
+
+  /* Let the bots slug it out instantly, then settle the auction. */
+  resolveAuctionWithBots(decide) {
+    let guard = 0;
+    while (this.pending && this.pending.type === 'auction' && guard++ < 500) {
+      let acted = false;
+      for (const p of this.players) {
+        const pd = this.pending;
+        if (!pd || pd.type !== 'auction') break;
+        if (!p.bot || !p.alive || p.id === pd.seller) continue;
+        if (pd.high && pd.high.player === p.id) continue;
+        if (pd.passed.indexOf(p.id) >= 0) continue;
+        const a = decide(this, p);
+        if (a) {
+          const r = this.actAuction(p, a);
+          if (r.ok) acted = true;
+        }
+      }
+      if (!acted) {
+        if (this.pending && this.pending.type === 'auction') this.finishAuction();
+        break;
+      }
+    }
   }
 
   actAuction(p, a) {
@@ -467,7 +515,7 @@ class Game {
     if (p.cash < amount) return this.err('You cannot afford that bid.');
     pd.high = { player: p.id, amount };
     pd.passed = pd.passed.filter(id => id !== p.id);
-    pd.deadline = Date.now() + G.AUCTION_MS;
+    pd.deadline = Date.now() + Math.round(G.AUCTION_MS / this.speed);
     this.addLog(p.name + ' bids ' + fmt(amount) + ' for ' + G.HOTELS[pd.plotId].name + '.');
     this.seq++;
     return { ok: true };
@@ -539,6 +587,7 @@ class Game {
     return {
       phase: this.phase,
       winner: this.winner,
+      speed: this.speed,
       turn: this.cur() ? this.cur().id : null,
       players: this.players.map(p => ({
         id: p.id, name: p.name, bot: p.bot, color: p.color,

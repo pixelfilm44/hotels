@@ -126,14 +126,14 @@ function scheduleBots(room) {
       }
     }, Math.max(100, pd.deadline - Date.now() + 80));
     // Stagger bot bids.
-    let delay = 600;
+    let delay = 600 / g.speed;
     for (const p of g.players) {
       if (!p.alive || p.id === pd.seller) continue;
       const rp = room.players.find(x => x.id === p.id);
       const isBot = !!p.bot;
       const isGone = rp && !rp.bot && !rp.ws;
       if (!isBot && !isGone) continue;
-      const d = delay += 400 + Math.random() * 600;
+      const d = delay += (400 + Math.random() * 600) / g.speed;
       room.botTimers.push(setTimeout(() => {
         if (g.seq !== seq || !g.pending || g.pending.type !== 'auction') return;
         const player = g.byId(p.id);
@@ -148,7 +148,7 @@ function scheduleBots(room) {
   const owner = g.byId(pd.player);
   if (!owner) return;
   if (owner.bot) {
-    const delay = 700 + Math.random() * 900;
+    const delay = (700 + Math.random() * 900) / g.speed;
     room.botTimers.push(setTimeout(() => {
       if (g.seq !== seq) return;
       const a = Bot.decide(g, owner);
@@ -301,9 +301,30 @@ function handle(ws, m) {
 
     case 'action': {
       if (!room || !me || !room.game) return;
-      const res = room.game.act(me.id, m.action || {});
+      const g = room.game;
+      if (m.action && m.action.t === 'ffAuction') {
+        if (!g.pending || g.pending.type !== 'auction')
+          return send(ws, { t: 'error', msg: 'No auction running.' });
+        if (!g.auctionHumansDone())
+          return send(ws, { t: 'error', msg: 'Other players can still bid.' });
+        g.resolveAuctionWithBots(Bot.decide);
+        touch(room);
+        broadcast(room);
+        scheduleBots(room);
+        return;
+      }
+      const res = g.act(me.id, m.action || {});
       if (!res.ok) return send(ws, { t: 'error', msg: res.error });
       touch(room);
+      broadcast(room);
+      scheduleBots(room);
+      return;
+    }
+
+    case 'speed': {
+      if (!room || !me || !room.game) return;
+      if (me.id !== hostId(room)) return send(ws, { t: 'error', msg: 'Only the host can change the speed.' });
+      room.game.speed = (m.speed === 3 ? 3 : 1);
       broadcast(room);
       scheduleBots(room);
       return;

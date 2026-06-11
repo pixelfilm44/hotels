@@ -45,10 +45,10 @@
           broadcast();
         }
       }, Math.max(100, pd.deadline - Date.now() + 80));
-      var delay = 500;
+      var delay = 500 / game.speed;
       game.players.forEach(function (p) {
         if (!p.alive || p.id === pd.seller || !p.bot) return;
-        delay += 400 + Math.random() * 600;
+        delay += (400 + Math.random() * 600) / game.speed;
         timers.push(setTimeout(function () {
           if (!game || game.seq !== seq || !game.pending || game.pending.type !== 'auction') return;
           var a = BOT.decide(game, p);
@@ -64,12 +64,23 @@
         if (!game || game.seq !== seq) return;
         var a = BOT.decide(game, owner);
         if (a) act(owner.id, a);
-      }, 600 + Math.random() * 800));
+      }, (600 + Math.random() * 800) / game.speed));
     }
   }
 
   function send(m) {
-    if (m.t === 'action') act(m.as, m.action || {});
+    if (m.t === 'action') {
+      if (m.action && m.action.t === 'ffAuction') {
+        if (game && game.pending && game.pending.type === 'auction' &&
+            game.auctionHumansDone()) {
+          game.resolveAuctionWithBots(BOT.decide);
+          broadcast();
+        }
+        return;
+      }
+      act(m.as, m.action || {});
+    }
+    else if (m.t === 'speed') { if (game) { game.speed = (m.speed === 3 ? 3 : 1); broadcast(); } }
     else if (m.t === 'start') start(null);
     else if (m.t === 'leave') { clearTimers(); game = null; }
   }

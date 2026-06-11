@@ -71,6 +71,8 @@
     <div id="players"></div>
     <div id="log"></div>
     <div class="panel-foot">
+      <button id="btn-speed" class="btn mini hidden">🐢 1×</button>
+      <button id="btn-mute" class="btn mini">🔊</button>
       <button id="btn-rules-game" class="btn mini">Rules</button>
       <button id="btn-quit" class="btn mini">Quit</button>
     </div>
@@ -101,6 +103,8 @@
 
 <div id="deed-modal" class="hidden"></div>
 <div id="rent-modal" class="hidden"></div>
+<div id="perm-modal" class="hidden"></div>
+<div id="die-overlay" class="hidden"></div>
 
 <div id="local-modal" class="hidden">
   <div class="modal-card">
@@ -118,7 +122,8 @@
 <script src="shared/gamedata.js"></script>
 <script src="shared/engine.js"></script>
 <script src="shared/bot.js"></script>
-<script src="js/sprites.js"></script>
+<script src="js/assets.js"></script>
+<script src="js/sound.js"></script>
 <script src="js/net.js"></script>
 <script src="js/local.js"></script>
 <script src="js/render.js"></script>

@@ -11,8 +11,14 @@
     sel: null,            // {squares:[], make:fn(sq)->action}
     quickBots: false, auctionTimer: null, wasEnded: false,
     mode: 'online',       // 'online' (Net) or 'local' (in-browser engine)
-    conn: window.Net, localBidder: null, lastStaySeq: 0, rentTimer: null
+    conn: window.Net, localBidder: null, lastStaySeq: 0, rentTimer: null,
+    permSeqSeen: 0, permTimer: null, rollSeqSeen: 0, dieTimer: null, dieHide: null,
+    cashShown: {}, cashTokens: {}
   };
+
+  function localHumans() {
+    return S.mode === 'local' ? Local.humanIds() : [S.playerId];
+  }
 
   /* ---------- helpers ---------- */
   function show(screen) {
@@ -40,7 +46,12 @@
     b.addEventListener('click', fn);
     return b;
   }
-  function sendAction(a) { S.conn.send({ t: 'action', as: S.playerId, action: a }); }
+  function sendAction(a) {
+    if (a.t === 'buy' && a.yes) Sound.play('buy');
+    else if (a.t === 'entrance') Sound.play('buy');
+    else if (a.t === 'buyFacility' || a.t === 'freeBuild') Sound.play('build');
+    S.conn.send({ t: 'action', as: S.playerId, action: a });
+  }
   function sendActionAs(pid, a) { S.conn.send({ t: 'action', as: pid, action: a }); }
   function saveSession() {
     localStorage.setItem('hotels-session', JSON.stringify({ code: S.code, token: S.token }));
@@ -96,11 +107,11 @@
 
   function onState(m) {
     var fresh = !S.view || (S.wasEnded && m.game.phase === 'playing');
+    var prev = fresh ? null : S.view;
     S.view = m.game;
     S.wasEnded = m.game.phase === 'ended';
-    if (fresh) { S.boardReady = false; }
+    if (fresh) { S.boardReady = false; S.cashShown = {}; }
     S.sel = null;
-    maybeShowRent(fresh);
     if (S.mode === 'local') {
       // Hot-seat: "you" is whoever the pending decision belongs to (if human).
       var pd = m.game.pending;
@@ -111,6 +122,11 @@
     show('game');
     renderGame();
     Render.setSelectable([]);
+    maybeShowRent(fresh);
+    maybeShowPerm(fresh);
+    maybeAnimateRoll(fresh);
+    animateMoney(prev, fresh);
+    soundEvents(prev);
   }
   function onError(m) {
     toast(m.msg || 'Error');
@@ -283,6 +299,14 @@
     renderPrompt();
     renderLog();
     renderOverlay();
+
+    // bot speed toggle (host-only online; anyone offline)
+    var sp = $('btn-speed');
+    var hostP = S.view.players.find(function (p) { return !p.bot; });
+    var canSpeed = S.mode === 'local' || (hostP && hostP.id === S.playerId);
+    var hasBots = S.view.players.some(function (p) { return p.bot; });
+    sp.classList.toggle('hidden', !canSpeed || !hasBots);
+    sp.textContent = S.view.speed === 3 ? '🐇 3×' : '🐢 1×';
   }
 
   function renderPlayers() {
@@ -291,15 +315,15 @@
     S.view.players.forEach(function (p) {
       var card = el('div', 'pcard' + (S.view.turn === p.id ? ' active' : '') +
         (p.alive ? '' : ' dead'), null, box);
-      var img = document.createElement('img');
-      img.src = Sprites.car(p.color).url;
-      img.className = 'pix car-img';
-      card.appendChild(img);
+      var carBox = el('span', 'car-box', null, card);
+      carBox.innerHTML = Render.carMarkup(p.color);
       var info = el('div', 'pinfo', null, card);
       el('div', 'pname', p.name +
         (S.mode === 'online' && p.id === S.playerId ? ' (you)' : '') +
         (p.bot ? ' 🤖' : ''), info);
-      el('div', 'pcash', p.alive ? fmt(p.cash) : 'BANKRUPT', info);
+      var shown = S.cashShown[p.id] != null ? S.cashShown[p.id] : p.cash;
+      var cashEl = el('div', 'pcash', p.alive ? fmt(shown) : 'BANKRUPT', info);
+      cashEl.id = 'cash-' + p.id;
       var hotels = el('div', 'photels', null, info);
       S.view.plots.forEach(function (pl, i) {
         if (pl.owner !== p.id) return;
@@ -482,6 +506,13 @@
     if (v.phase === 'ended') {
       ov.classList.remove('hidden');
       ov.innerHTML = '';
+      for (var ci = 0; ci < 70; ci++) {
+        var cf = el('span', 'confetti', null, ov);
+        cf.style.left = (Math.random() * 100) + 'vw';
+        cf.style.background = ['#e0413e', '#3d7be0', '#3fae49', '#e8b430', '#c9a6e8'][ci % 5];
+        cf.style.animationDelay = (Math.random() * 1.4) + 's';
+        cf.style.animationDuration = (2.4 + Math.random() * 1.8) + 's';
+      }
       var card = el('div', 'modal-card center', null, ov);
       var w = playerById(v.winner);
       el('div', 'winner-title', '🏆 ' + w.name + ' WINS! 🏆', card);
@@ -560,6 +591,19 @@
       if (m3 && m3.id === pd.seller)
         el('p', 'prompt-sub', 'Your property is under the hammer…', c);
     }
+
+    // fast-forward: when only bots are left to bid, let any human settle it now
+    var minBid = pd.high ? pd.high.amount + 50 : 50;
+    var humanCanStillBid = v.players.some(function (p) {
+      return !p.bot && p.alive && p.id !== pd.seller &&
+        (!pd.high || pd.high.player !== p.id) &&
+        pd.passed.indexOf(p.id) < 0 && p.cash >= minBid;
+    });
+    if (!humanCanStillBid) {
+      btn('⏩ Resolve now', 'small', function () {
+        sendAction({ t: 'ffAuction' });
+      }, el('div', 'btn-row center', null, c));
+    }
   }
 
   /* ---------- deed modal ---------- */
@@ -603,6 +647,160 @@
     });
   }
 
+  /* ---------- juice: die roll, money ticker, sounds ---------- */
+  function maybeAnimateRoll(fresh) {
+    var lr = S.view.lastRoll;
+    if (!lr || !lr.seq || lr.seq === S.rollSeqSeen) return;
+    S.rollSeqSeen = lr.seq;
+    if (fresh) return;
+    var ov = $('die-overlay');
+    var board = $('board-wrap');
+    if (board) {
+      var rect = board.getBoundingClientRect();
+      ov.style.left = (rect.left + rect.width / 2) + 'px';
+      ov.style.top = (rect.top + rect.height * 0.42) + 'px';
+    }
+    var p = playerById(lr.player);
+    ov.innerHTML = '<div class="die-roller"><div class="die-name" style="color:' +
+      p.color + '">' + p.name + '</div><div class="die-face" id="die-face"></div></div>';
+    ov.classList.remove('hidden');
+    Sound.play('dice');
+    var face = document.getElementById('die-face');
+    var n = 0;
+    clearInterval(S.dieTimer); clearTimeout(S.dieHide);
+    S.dieTimer = setInterval(function () {
+      n++;
+      if (n < 8) {
+        face.innerHTML = dieSVG(1 + Math.floor(Math.random() * 6), 76);
+      } else {
+        clearInterval(S.dieTimer);
+        face.innerHTML = dieSVG(lr.value, 76);
+        face.classList.add('settled');
+      }
+    }, 85);
+    S.dieHide = setTimeout(function () { ov.classList.add('hidden'); }, 1700);
+  }
+
+  function animateMoney(prev, fresh) {
+    if (!prev || fresh) {
+      S.view.players.forEach(function (p) { S.cashShown[p.id] = p.cash; });
+      return;
+    }
+    S.view.players.forEach(function (p) {
+      var pp = prev.players.find(function (x) { return x.id === p.id; });
+      var old = pp ? pp.cash : null;
+      if (old === null || old === p.cash || !p.alive) { S.cashShown[p.id] = p.cash; return; }
+      floatDelta(p.id, p.cash - old);
+      tickCash(p.id, S.cashShown[p.id] != null ? S.cashShown[p.id] : old, p.cash);
+      if (p.cash > old && localHumans().indexOf(p.id) >= 0) Sound.play('cash');
+    });
+  }
+
+  function tickCash(pid, from, to) {
+    var t0 = performance.now(), dur = 700;
+    var my = S.cashTokens[pid] = (S.cashTokens[pid] || 0) + 1;
+    function frame(now) {
+      if (S.cashTokens[pid] !== my) return;
+      var k = Math.min(1, (now - t0) / dur);
+      k = 1 - Math.pow(1 - k, 3);
+      var v = Math.round((from + (to - from) * k) / 10) * 10;
+      S.cashShown[pid] = v;
+      var e = document.getElementById('cash-' + pid);
+      if (e) {
+        e.textContent = fmt(v);
+        e.classList.toggle('up', to > from);
+        e.classList.toggle('down', to < from);
+      }
+      if (k < 1) requestAnimationFrame(frame);
+      else {
+        S.cashShown[pid] = to;
+        if (e) setTimeout(function () { e.classList.remove('up', 'down'); }, 500);
+      }
+    }
+    requestAnimationFrame(frame);
+  }
+
+  function floatDelta(pid, delta) {
+    var cashEl = document.getElementById('cash-' + pid);
+    if (!cashEl) return;
+    var f = document.createElement('span');
+    f.className = 'cash-float ' + (delta > 0 ? 'up' : 'down');
+    f.textContent = (delta > 0 ? '+' : '−') + fmt(Math.abs(delta));
+    cashEl.parentElement.appendChild(f);
+    setTimeout(function () { f.remove(); }, 1500);
+  }
+
+  function soundEvents(prev) {
+    if (!prev) return;
+    var v = S.view;
+    // someone went bankrupt
+    var was = prev.players.filter(function (p) { return p.alive; }).length;
+    var now = v.players.filter(function (p) { return p.alive; }).length;
+    if (now < was && v.phase !== 'ended') Sound.play('bankrupt');
+    // game over
+    if (v.phase === 'ended' && prev.phase !== 'ended') Sound.play('win');
+    // auction events
+    var pa = prev.pending && prev.pending.type === 'auction' ? prev.pending : null;
+    var na = v.pending && v.pending.type === 'auction' ? v.pending : null;
+    if (pa && !na) Sound.play('gavel');
+    if (na && (!pa || (na.high && (!pa.high || pa.high.amount !== na.high.amount))))
+      { if (na.high) Sound.play('bid'); }
+  }
+
+  /* ---------- planning permission modal ---------- */
+  function maybeShowPerm(fresh) {
+    var pm = S.view.lastPerm;
+    if (!pm || !pm.seq || pm.seq === S.permSeqSeen) return;
+    S.permSeqSeen = pm.seq;
+    if (fresh) return;
+    if (localHumans().indexOf(pm.player) < 0) return;
+    showPermModal(pm);
+  }
+
+  function showPermModal(pm) {
+    var modal = $('perm-modal');
+    modal.innerHTML = '';
+    modal.classList.remove('hidden');
+    var h = G.HOTELS[pm.plotId];
+    var c = el('div', 'modal-card center', null, modal);
+    var titles = {
+      green: ['✅ Permission granted!', '#3fae49'],
+      free: ['🎉 FREE BUILD!', '#e8b430'],
+      double: [pm.built ? '💸 Granted… at DOUBLE cost!' : '❌ Double cost — too rich!', '#e07b2e'],
+      red: ['🚫 Permission DENIED!', '#e0413e']
+    };
+    var t = titles[pm.face];
+    c.style.borderColor = t[1];
+    el('div', 'perm-die-big ' + pm.face,
+      { green: 'GO', red: 'NO', free: 'H', double: '×2' }[pm.face], c);
+    el('div', 'rent-title', t[0], c);
+    var body;
+    if (pm.face === 'red')
+      body = 'The council refuses your plans for the ' + pm.what + ' at ' + h.name +
+        '. Try again from another PLANNING square.';
+    else if (pm.face === 'free')
+      body = 'The council builds the ' + pm.what + ' at ' + h.name +
+        ' for FREE (worth ' + fmt(pm.cost) + ')!';
+    else if (pm.face === 'double' && !pm.built)
+      body = 'They demanded ' + fmt(pm.cost * 2) + ' and you could not afford it. Build cancelled.';
+    else
+      body = 'You build the ' + pm.what + ' at ' + h.name + ' for ' + fmt(pm.paid) + '.';
+    el('div', 'rent-hotel', body, c);
+    if (pm.complete)
+      el('div', 'rent-status good', h.name + ' is now FULLY BUILT ' + '★'.repeat(h.stars) + '!', c);
+    btn('OK', 'primary', closePermModal, c);
+    Sound.play(pm.face === 'red' ? 'denied'
+      : pm.face === 'free' ? 'free'
+      : pm.built ? (pm.face === 'double' ? 'double' : 'build') : 'denied');
+    clearTimeout(S.permTimer);
+    S.permTimer = setTimeout(closePermModal, 5200);
+    modal.onclick = function (ev) { if (ev.target === modal) closePermModal(); };
+  }
+  function closePermModal() {
+    clearTimeout(S.permTimer);
+    $('perm-modal').classList.add('hidden');
+  }
+
   /* ---------- rent modal ---------- */
   function maybeShowRent(fresh) {
     var st = S.view && S.view.lastStay;
@@ -638,6 +836,7 @@
       ? (iPay ? 'Paid to ' + owner.name + '.' : payer.name + ' pays you in full!')
       : payer.name + ' cannot cover the bill and must auction assets!', c);
     btn('OK', 'primary', closeRentModal, c);
+    if (iPay) Sound.play('pay');
 
     clearTimeout(S.rentTimer);
     S.rentTimer = setTimeout(closeRentModal, 6500);
@@ -649,6 +848,17 @@
   }
 
   /* ---------- misc buttons ---------- */
+  $('btn-speed').addEventListener('click', function () {
+    if (!S.view) return;
+    S.conn.send({ t: 'speed', speed: S.view.speed === 3 ? 1 : 3 });
+  });
+  function muteLabel() { $('btn-mute').textContent = Sound.muted() ? '🔇' : '🔊'; }
+  $('btn-mute').addEventListener('click', function () { Sound.toggle(); muteLabel(); });
+  muteLabel();
+  if (window.ClayAssets) ClayAssets.onReady(function () {
+    if (S.screen === 'game' && S.view) { S.boardReady = false; renderGame(); }
+  });
+
   function openRules() { $('rules-modal').classList.remove('hidden'); }
   $('btn-rules-home').addEventListener('click', openRules);
   $('btn-rules-game').addEventListener('click', openRules);

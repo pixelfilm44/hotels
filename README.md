@@ -68,6 +68,30 @@ host (Render, Fly, Railway, a VPS…) for internet play.
 The eight hotels are original creations (Surf Shack → The Meridian) with the
 same cost/star/rate structure as the original board.
 
+## Claymation image assets (optional upgrade)
+
+The game ships with vector "clay" art drawn in code. To upgrade any piece to a
+real claymation image (e.g. AI-generated), drop PNG files into
+`docs/assets/clay/` and list their keys in `docs/assets/clay/manifest.json`,
+e.g. `["board", "car-red", "icon-bank"]`. Anything not listed keeps the vector
+art. All PNGs need transparent backgrounds except `board`.
+
+| Key(s) | Size (px) | What it is |
+|---|---|---|
+| `board` | 1248×960 | Full board background incl. green clay courtyard (opaque) |
+| `square` | 192×192 | One neutral cream track tile (specials get a colour wash on top) |
+| `plot-3x2`, `plot-4x2` | 576×384, 768×384 | Neutral clay slabs for horizontal hotel plots (colour-washed per hotel) |
+| `plot-2x3`, `plot-2x4` | 384×576, 384×768 | Vertical hotel plot slabs |
+| `car-red/-blue/-green/-yellow` | 272×224 | Player car tokens, side view facing right |
+| `icon-start/-bank/-cityhall/-permission/-free-entrance/-free-build` | 176×176 | Dark glyph icons for special squares |
+| `building-main`, `building-wing` | 200×280, 170×230 | Hotel buildings (cream walls, terracotta roof) |
+| `pool` | 200×150 | Leisure-facility pool |
+| `awning-red/-blue/-green/-yellow` | 280×130 | Striped entrance awnings (white + player colour) |
+| `logo` | 1200×240 | "HOTELS" clay letters for the board centre |
+
+A consistent style across all images matters more than exact pixel sizes —
+everything is scaled to fit (keep roughly these aspect ratios).
+
 ## Code layout
 
 - `docs/` — the static client, served by GitHub Pages and the Node server
