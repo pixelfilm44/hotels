@@ -6,9 +6,16 @@
   var retry = 0;
   var onOpen = null;
 
-  function connect() {
+  function wsUrl() {
+    var isStatic = /\.github\.io$/.test(location.hostname) || location.protocol === 'file:';
+    var remote = window.HOTELS_CONFIG && window.HOTELS_CONFIG.server;
+    if (isStatic && remote) return remote;
     var proto = location.protocol === 'https:' ? 'wss://' : 'ws://';
-    ws = new WebSocket(proto + location.host);
+    return proto + location.host;
+  }
+
+  function connect() {
+    ws = new WebSocket(wsUrl());
     ws.onopen = function () {
       retry = 0;
       if (onOpen) onOpen();

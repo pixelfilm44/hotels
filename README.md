@@ -10,7 +10,25 @@ bots (easy / medium / hard) or hot-seat with friends on one device.
 
 ## Online multiplayer (separate devices)
 
-True online play uses a small Node server for rooms and synchronization:
+True online play uses a small Node server for rooms and synchronization.
+
+### One-click cloud deploy (Render)
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/pixelfilm44/hotels)
+
+The included [render.yaml](render.yaml) blueprint creates a free web service
+named `hotels-pixel-tycoon`. Once it's live:
+
+- Play with full online rooms directly at `https://hotels-pixel-tycoon.onrender.com`
+- The GitHub Pages site also connects to it automatically
+  ([docs/js/config.js](docs/js/config.js) points at that URL — update it if your
+  service gets a different name), so https://pixelfilm44.github.io/hotels/
+  gains online rooms too.
+- Note: the free tier sleeps when idle; the first visit can take up to a
+  minute to wake the server. The online buttons enable automatically once
+  it's awake, and offline play is always available immediately.
+
+### Run it yourself
 
 ```bash
 npm install

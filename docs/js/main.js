@@ -673,9 +673,15 @@
     n.textContent = note;
     n.classList.remove('hidden');
   }
-  if (isPages) {
+  var remoteServer = window.HOTELS_CONFIG && window.HOTELS_CONFIG.server;
+  if (isPages && !remoteServer) {
     disableOnline('Online rooms need the Node server — clone the repo and run "npm start". ' +
       'Bots & hot-seat play work right here!');
+  } else if (isPages && remoteServer) {
+    // Free-tier servers sleep when idle; the first connection can take ~1 min.
+    disableOnline('Waking the online game server (free hosting can take up to a minute)… ' +
+      'Offline play works right away.');
+    Net.start();
   } else {
     $('home-status').textContent = 'Connecting…';
     setTimeout(function () {
