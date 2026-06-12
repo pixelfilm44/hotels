@@ -35,7 +35,7 @@
 
   function scheduleBots() {
     clearTimers();
-    if (!game || game.phase !== 'playing' || !game.pending) return;
+    if (!game || (game.phase !== 'playing' && game.phase !== 'rolloff') || !game.pending) return;
     var pd = game.pending, seq = game.seq;
 
     if (pd.type === 'auction') {

@@ -13,7 +13,7 @@
     mode: 'online',       // 'online' (Net) or 'local' (in-browser engine)
     conn: window.Net, localBidder: null, lastStaySeq: 0, rentTimer: null,
     permSeqSeen: 0, permTimer: null, rollSeqSeen: 0, dieTimer: null, dieHide: null,
-    cashShown: {}, cashTokens: {}
+    cashShown: {}, cashTokens: {}, orderSeqSeen: 0
   };
 
   function localHumans() {
@@ -125,8 +125,58 @@
     maybeShowRent(fresh);
     maybeShowPerm(fresh);
     maybeAnimateRoll(fresh);
+    maybeShowOrder(fresh);
     animateMoney(prev, fresh);
     soundEvents(prev);
+  }
+
+  /* ---------- turn-order reveal ---------- */
+  function maybeShowOrder(fresh) {
+    var v = S.view;
+    if (!v.orderSeq || v.orderSeq === S.orderSeqSeen) return;
+    S.orderSeqSeen = v.orderSeq;
+    if (fresh || !v.turnOrder) return;
+    var modal = $('perm-modal');
+    modal.innerHTML = '';
+    modal.classList.remove('hidden');
+    var c = el('div', 'modal-card center', null, modal);
+    c.style.borderColor = '#ecc23e';
+    el('div', 'rent-title', '🏁 Turn order!', c);
+    var list = el('div', 'order-list', null, c);
+    v.turnOrder.forEach(function (id, i) {
+      var p = playerById(id);
+      var row = el('div', 'order-row', null, list);
+      el('span', 'order-rank', (i + 1) + '.', row);
+      var cb = el('span', 'car-box', null, row);
+      cb.innerHTML = Render.carMarkup(p.color);
+      el('span', null, p.name + (i === 0 ? '  — goes first!' : ''), row);
+    });
+    btn('Let’s go!', 'primary', closePermModal, c);
+    Sound.play('free');
+    clearTimeout(S.permTimer);
+    S.permTimer = setTimeout(closePermModal, 5000);
+    modal.onclick = function (ev) { if (ev.target === modal) closePermModal(); };
+  }
+
+  /* ---------- danger zone ---------- */
+  function dangerSquares() {
+    var v = S.view, pd = v.pending;
+    if (!pd || pd.type !== 'roll' || v.phase !== 'playing') return [];
+    if (localHumans().indexOf(pd.player) < 0) return [];
+    var roller = playerById(pd.player);
+    if (!roller || !roller.alive) return [];
+    var out = [];
+    for (var s = 1; s <= 6; s++) {
+      var sq = (roller.pos + s) % G.TRACK.length;
+      v.plots.forEach(function (pl, i) {
+        if (!pl.owner || pl.owner === roller.id || pl.stages === 0) return;
+        if (pl.entrances.indexOf(sq) < 0) return;
+        var rate = G.HOTELS[i].rates[pl.stages - 1 + (pl.facility ? 1 : 0)];
+        var frac = (rate * 3.5) / Math.max(1, roller.cash);
+        out.push({ sq: sq, tier: frac > 0.4 ? 3 : frac > 0.15 ? 2 : 1 });
+      });
+    }
+    return out;
   }
   function onError(m) {
     toast(m.msg || 'Error');
@@ -294,6 +344,7 @@
       S.boardReady = true;
     }
     Render.update(S.view);
+    Render.setDanger(dangerSquares());
     renderPlayers();
     renderDice();
     renderPrompt();
@@ -324,6 +375,8 @@
       var shown = S.cashShown[p.id] != null ? S.cashShown[p.id] : p.cash;
       var cashEl = el('div', 'pcash', p.alive ? fmt(shown) : 'BANKRUPT', info);
       cashEl.id = 'cash-' + p.id;
+      if (p.alive && p.worth != null && p.worth !== p.cash)
+        el('div', 'pworth', 'net worth ' + fmt(p.worth), info);
       var hotels = el('div', 'photels', null, info);
       S.view.plots.forEach(function (pl, i) {
         if (pl.owner !== p.id) return;
@@ -355,6 +408,7 @@
   }
 
   var WAIT_DESC = {
+    'order-roll': 'rolling for turn order',
     'roll': 'rolling the die', 'buy-land': 'eyeing a land deal',
     'choose-build': 'choosing what to build', 'permission-roll': 'at the planning office',
     'buy-entrances': 'shopping for entrances', 'free-entrance': 'placing a free entrance',
@@ -378,6 +432,17 @@
     var m = me();
 
     switch (pd.type) {
+      case 'order-roll': {
+        el('div', 'prompt-title', 'Roll for turn order — highest goes first!', box);
+        var rolled = pd.group
+          .map(function (id) {
+            var pl = playerById(id);
+            return pl.name + ': ' + (pd.rolls[id] !== undefined ? pd.rolls[id] : '…');
+          }).join('   ');
+        el('div', 'prompt-sub', rolled, box);
+        btn('🎲 ROLL', 'primary big', function () { sendAction({ t: 'orderRoll' }); }, box);
+        break;
+      }
       case 'roll': {
         var manyHumans = S.mode === 'local' && Local.humanIds().length > 1;
         el('div', 'prompt-title', manyHumans ? m.name + "'s turn!" : 'Your turn!', box);
@@ -517,6 +582,7 @@
       var w = playerById(v.winner);
       el('div', 'winner-title', '🏆 ' + w.name + ' WINS! 🏆', card);
       el('p', 'muted', 'Last tycoon standing.', card);
+      appendWorthChart(card, v);
       var row = el('div', 'btn-row center', null, card);
       btn('Play again', 'primary', function () { S.conn.send({ t: 'start' }); }, row);
       btn('Leave', '', function () {
@@ -604,6 +670,56 @@
         sendAction({ t: 'ffAuction' });
       }, el('div', 'btn-row center', null, c));
     }
+  }
+
+  /* ---------- end-of-game net worth chart ---------- */
+  function appendWorthChart(parent, v) {
+    var H = v.history;
+    if (!H || H.length < 2) return;
+    var NSvg = 'http://www.w3.org/2000/svg';
+    var W = 420, Hh = 180, pad = 10;
+    var maxV = G.START_CASH;
+    H.forEach(function (row) {
+      row.forEach(function (x) { if (x > maxV) maxV = x; });
+    });
+    var wrap = el('div', 'chart-wrap', null, parent);
+    el('div', 'prompt-sub', 'Net worth over the game', wrap);
+    var svg = document.createElementNS(NSvg, 'svg');
+    svg.setAttribute('viewBox', '0 0 ' + W + ' ' + Hh);
+    svg.setAttribute('class', 'worth-chart');
+    function sel(tag, attrs) {
+      var e = document.createElementNS(NSvg, tag);
+      for (var k in attrs) e.setAttribute(k, attrs[k]);
+      svg.appendChild(e);
+      return e;
+    }
+    sel('rect', { x: 0.5, y: 0.5, width: W - 1, height: Hh - 1, rx: 12,
+      fill: '#1f3050', stroke: '#1f2733', 'stroke-width': 2 });
+    // starting-cash reference line
+    var y0 = Hh - pad - (Hh - 2 * pad) * (G.START_CASH / maxV);
+    sel('line', { x1: pad, y1: y0, x2: W - pad, y2: y0,
+      stroke: '#5b729a', 'stroke-width': 1, 'stroke-dasharray': '4 4' });
+    v.players.forEach(function (p, pi) {
+      var pts = H.map(function (row, i) {
+        var x = pad + (W - 2 * pad) * i / (H.length - 1);
+        var y = Hh - pad - (Hh - 2 * pad) * ((row[pi] || 0) / maxV);
+        return x.toFixed(1) + ',' + y.toFixed(1);
+      }).join(' ');
+      sel('polyline', { points: pts, fill: 'none', stroke: p.color,
+        'stroke-width': 2.6, 'stroke-linejoin': 'round', 'stroke-linecap': 'round',
+        opacity: p.id === v.winner ? 1 : 0.8 });
+    });
+    var peak = sel('text', { x: pad + 4, y: 16, 'font-size': 10,
+      fill: '#aebbd2', 'font-family': 'inherit', 'text-anchor': 'start' });
+    peak.textContent = 'peak ' + fmt(maxV) + ' · dashed = starting cash';
+    wrap.appendChild(svg);
+    var legend = el('div', 'chart-legend', null, wrap);
+    v.players.forEach(function (p) {
+      var item = el('span', 'legend-item', null, legend);
+      var dot = el('span', 'legend-dot', null, item);
+      dot.style.background = p.color;
+      el('span', null, p.name, item);
+    });
   }
 
   /* ---------- deed modal ---------- */

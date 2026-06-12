@@ -10,7 +10,7 @@ function runGame(n, diffs, verbose) {
     players.push({ id: 'P' + (i + 1), name: 'Bot' + (i + 1) + '-' + diffs[i], bot: diffs[i] });
   const g = new Game(players);
   let steps = 0;
-  while (g.phase === 'playing' && steps < 100000) {
+  while (g.phase !== 'ended' && steps < 100000) {
     steps++;
     const pd = g.pending;
     if (!pd) throw new Error('No pending while playing');

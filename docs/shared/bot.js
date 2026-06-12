@@ -24,6 +24,9 @@ function decide(game, player) {
   if (pd.player !== player.id) return null;
 
   switch (pd.type) {
+    case 'order-roll':
+      return { t: 'orderRoll' };
+
     case 'roll': {
       // Consider buying a leisure facility before rolling (no permission needed).
       if (player.bot !== 'easy' || Math.random() < 0.4) {

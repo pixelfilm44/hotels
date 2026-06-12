@@ -112,7 +112,7 @@ function actAndContinue(room, playerId, action) {
 function scheduleBots(room) {
   clearBotTimers(room);
   const g = room.game;
-  if (!g || g.phase !== 'playing' || !g.pending) return;
+  if (!g || (g.phase !== 'playing' && g.phase !== 'rolloff') || !g.pending) return;
   const pd = g.pending;
   const seq = g.seq;
 

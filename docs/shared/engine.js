@@ -21,8 +21,12 @@ class Game {
       owner: null, stages: 0, facility: false, entrances: [], boughtOnTurn: -1
     }));
     this.turn = 0;
-    this.phase = 'playing';
+    this.phase = 'rolloff';
     this.winner = null;
+    this.rolloff = { queue: [this.players.map(p => p.id)], rolls: {}, ranking: [] };
+    this.turnOrder = null;
+    this.orderSeq = 0;
+    this.history = [];
     this.queue = [];
     this.pending = null;
     this.log = [];
@@ -37,7 +41,67 @@ class Game {
     this.rolledSix = false;
     this.addLog('The game begins! ' + this.players.map(p => p.name).join(', ') +
       ' each start with ' + fmt(G.START_CASH) + '.');
+    this.addLog('Everyone rolls to see who goes first — highest leads off!');
+    this.nextOrderRoll();
+  }
+
+  /* ---------- pre-game roll-off ---------- */
+  nextOrderRoll() {
+    const ro = this.rolloff;
+    while (ro.queue.length) {
+      const group = ro.queue[0];
+      if (group.length === 1) { ro.ranking.push(group[0]); ro.queue.shift(); continue; }
+      const unrolled = group.find(id => ro.rolls[id] === undefined);
+      if (unrolled !== undefined) {
+        this.pending = { type: 'order-roll', player: unrolled,
+          group: group.slice(), rolls: Object.assign({}, ro.rolls),
+          ranking: ro.ranking.slice() };
+        return;
+      }
+      // everyone in the group rolled: split by value, ties re-roll among themselves
+      const byVal = {};
+      group.forEach(id => {
+        (byVal[ro.rolls[id]] = byVal[ro.rolls[id]] || []).push(id);
+      });
+      const sub = Object.keys(byVal).map(Number).sort((a, b) => b - a)
+        .map(v => byVal[v]);
+      sub.forEach(s => {
+        if (s.length > 1)
+          this.addLog('Tie! ' + s.map(id => this.byId(id).name).join(' & ') + ' roll again.');
+      });
+      ro.queue.shift();
+      ro.queue = sub.concat(ro.queue);
+      group.forEach(id => { delete ro.rolls[id]; });
+    }
+    this.finishRolloff();
+  }
+
+  finishRolloff() {
+    const order = this.rolloff.ranking;
+    this.players.sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
+    this.turn = 0;
+    this.phase = 'playing';
+    this.rolloff = null;
+    this.orderSeq++;
+    this.turnOrder = order.slice();
+    this.addLog('Turn order: ' +
+      order.map(id => this.byId(id).name).join(' → ') + '. ' +
+      this.byId(order[0]).name + ' goes first!');
+    this.sampleHistory();
     this.startTurn();
+  }
+
+  netWorth(p) {
+    if (!p.alive) return 0;
+    let w = p.cash;
+    this.plots.forEach((pl, i) => { if (pl.owner === p.id) w += this.plotValue(i); });
+    return w;
+  }
+
+  sampleHistory() {
+    this.history.push(this.players.map(p => this.netWorth(p)));
+    if (this.history.length > 1200)
+      this.history = this.history.filter((row, i) => i % 2 === 0);
   }
 
   /* ---------- helpers ---------- */
@@ -110,6 +174,7 @@ class Game {
 
   /* ---------- turn flow ---------- */
   startTurn() {
+    this.sampleHistory();
     const p = this.cur();
     p.turns++;
     this.boughtDeed = false;
@@ -245,6 +310,20 @@ class Game {
 
   /* ---------- actions ---------- */
   act(pid, a) {
+    if (this.phase === 'rolloff') {
+      const pd = this.pending;
+      if (!pd || pd.type !== 'order-roll') return this.err('Hold on…');
+      if (pd.player !== pid) return this.err('Not your roll.');
+      if (a.t !== 'orderRoll') return this.err('Roll the die.');
+      const r = this.roll();
+      this.rollSeq++;
+      this.lastRoll = { seq: this.rollSeq, player: pid, value: r };
+      this.rolloff.rolls[pid] = r;
+      this.addLog(this.byId(pid).name + ' rolls a ' + r + ' for turn order.');
+      this.seq++;
+      this.nextOrderRoll();
+      return { ok: true };
+    }
     if (this.phase !== 'playing') return this.err('The game is over.');
     const pd = this.pending;
     if (!pd) return this.err('Nothing to do right now.');
@@ -568,6 +647,7 @@ class Game {
     });
     p.alive = false;
     this.addLog('💥 ' + p.name + ' is BANKRUPT and out of the game!');
+    this.sampleHistory();
     const alive = this.players.filter(x => x.alive);
     if (alive.length === 1) {
       this.phase = 'ended';
@@ -591,8 +671,12 @@ class Game {
       turn: this.cur() ? this.cur().id : null,
       players: this.players.map(p => ({
         id: p.id, name: p.name, bot: p.bot, color: p.color,
-        pos: p.pos, cash: p.cash, alive: p.alive, turns: p.turns
+        pos: p.pos, cash: p.cash, alive: p.alive, turns: p.turns,
+        worth: this.netWorth(p)
       })),
+      turnOrder: this.turnOrder,
+      orderSeq: this.orderSeq,
+      history: this.phase === 'ended' ? this.history : null,
       plots: this.plots.map(pl => ({
         owner: pl.owner, stages: pl.stages, facility: pl.facility,
         entrances: pl.entrances.slice(), boughtOnTurn: pl.boughtOnTurn

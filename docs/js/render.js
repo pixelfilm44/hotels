@@ -9,7 +9,7 @@
   var INK = '#262a33';
   var CREAM = '#f5ead0';
 
-  var svg, gSquares, gPlotsDyn, gEntrances, gHighlight, gTokens;
+  var svg, gSquares, gPlotsDyn, gEntrances, gDanger, gHighlight, gTokens;
   var tokenEls = {};   // pid -> {g, pos, timer}
   var onSquare = null, onPlot = null;
   var selectable = [];
@@ -162,6 +162,7 @@
     var gPlotsBase = el('g', { filter: 'url(#fShadow)' }, gWob);
     gPlotsDyn = el('g', {}, svg);
     gEntrances = el('g', {}, svg);
+    gDanger = el('g', {}, svg);
     gHighlight = el('g', {}, svg);
     gTokens = el('g', {}, svg);
 
@@ -223,7 +224,7 @@
       filter: 'url(#fGrain)', 'pointer-events': 'none' }, svg);
     // dynamic layers live above the grain
     svg.appendChild(gPlotsDyn); svg.appendChild(gEntrances);
-    svg.appendChild(gHighlight); svg.appendChild(gTokens);
+    svg.appendChild(gDanger); svg.appendChild(gHighlight); svg.appendChild(gTokens);
     return svg;
   }
 
@@ -397,6 +398,19 @@
     }, 130);
   }
 
+  function setDanger(list) {
+    if (!gDanger) return;
+    gDanger.innerHTML = '';
+    (list || []).forEach(function (d) {
+      var pos = G.TRACK[d.sq];
+      el('rect', {
+        x: pos.x * C + 1.5, y: pos.y * C + 1.5, width: C - 3, height: C - 3,
+        fill: 'none', stroke: '#e8463c', rx: 10,
+        class: 'danger danger-' + d.tier, 'pointer-events': 'none'
+      }, gDanger);
+    });
+  }
+
   function setSelectable(squares) {
     selectable = squares || [];
     if (!gHighlight) return;
@@ -418,7 +432,7 @@
   }
 
   window.Render = {
-    init: init, update: update, setSelectable: setSelectable,
+    init: init, update: update, setSelectable: setSelectable, setDanger: setDanger,
     isSelectable: function (sq) { return selectable.indexOf(sq) >= 0; },
     carMarkup: carMarkup,
     reset: function () {

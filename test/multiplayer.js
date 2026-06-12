@@ -58,6 +58,7 @@ async function until(fn, what, ms = 8000) {
     const cash = a.state.players.find(p => p.id === actor.id).cash;
     let action;
     switch (pd.type) {
+      case 'order-roll': action = { t: 'orderRoll' }; break;
       case 'roll': action = { t: 'roll' }; break;
       case 'stay-roll': action = { t: 'rollStay' }; break;
       case 'permission-roll': action = { t: 'rollPermission' }; break;
