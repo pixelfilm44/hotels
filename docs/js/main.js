@@ -363,7 +363,12 @@
   function renderPlayers() {
     var box = $('players');
     box.innerHTML = '';
-    S.view.players.forEach(function (p) {
+    // the real user always sits at the top of the list
+    var anchor = S.mode === 'local' ? Local.humanIds()[0] : S.playerId;
+    var ordered = S.view.players.slice().sort(function (a, b) {
+      return (a.id === anchor ? 0 : 1) - (b.id === anchor ? 0 : 1);
+    });
+    ordered.forEach(function (p) {
       var card = el('div', 'pcard' + (S.view.turn === p.id ? ' active' : '') +
         (p.alive ? '' : ' dead'), null, box);
       var carBox = el('span', 'car-box', null, card);
@@ -636,6 +641,9 @@
     }
 
     if (bidder) {
+      el('p', 'bidder-cash',
+        (S.mode === 'local' ? bidder.name + ' has ' : 'You have ') + fmt(bidder.cash) +
+        ' to bid with', c);
       if (pd.high && pd.high.player === bidder.id) {
         el('p', 'prompt-sub good',
           (S.mode === 'local' ? bidder.name + ' is' : 'You are') + ' the highest bidder!', c);
