@@ -65,32 +65,28 @@ host (Render, Fly, Railway, a VPS…) for internet play.
   If nobody bids, the bank reclaims the plot for a token half-land refund and
   demolishes the buildings. Out of money and assets = bankrupt; last player wins.
 
-The eight hotels are original creations (Surf Shack → The Meridian) with the
-same cost/star/rate structure as the original board.
+The eight hotels are Waikiri, Hábel, L'Étoile, Royal, Fujiyama, Boomerang,
+President and Safari, placed over the painted board image's regions.
 
-## Claymation image assets (optional upgrade)
+## Claymation board image
 
-The game ships with vector "clay" art drawn in code. To upgrade any piece to a
-real claymation image (e.g. AI-generated), drop PNG files into
-`docs/assets/clay/` and list their keys in `docs/assets/clay/manifest.json`,
-e.g. `["board", "car-red", "icon-bank"]`. Anything not listed keeps the vector
-art. All PNGs need transparent backgrounds except `board`.
+The live board is a single painted claymation image, `docs/assets/clay/board.png`
+(1560×1120, opaque), listed in `docs/assets/clay/manifest.json`. The game's road
+cells, hotel zones and special squares (PARTENZA = start, MUNICIPIO = city hall,
+BANCA = bank) are traced onto this image in `docs/shared/gamedata.js` (`CTRL`,
+`PLOTS`, `SPECIALS`). When the image is present the code-drawn road/terrain are
+hidden and only the functional overlay (special chips, contested diamonds, hotel
+ownership outlines, growing buildings, entrance awnings, tokens) is rendered on
+top. Remove the image (or empty the manifest) and the game falls back to the
+fully code-drawn vector clay board using the same geometry.
 
-| Key(s) | Size (px) | What it is |
-|---|---|---|
-| `board` | 1248×960 | Full board background incl. green clay courtyard (opaque) |
-| `square` | 192×192 | One neutral cream track tile (specials get a colour wash on top) |
-| `plot-3x2`, `plot-4x2` | 576×384, 768×384 | Neutral clay slabs for horizontal hotel plots (colour-washed per hotel) |
-| `plot-2x3`, `plot-2x4` | 384×576, 384×768 | Vertical hotel plot slabs |
-| `car-red/-blue/-green/-yellow` | 272×224 | Player car tokens, side view facing right |
-| `icon-start/-bank/-cityhall/-permission/-free-entrance/-free-build` | 176×176 | Dark glyph icons for special squares |
-| `building-main`, `building-wing` | 200×280, 170×230 | Hotel buildings (cream walls, terracotta roof) |
-| `pool` | 200×150 | Leisure-facility pool |
-| `awning-red/-blue/-green/-yellow` | 280×130 | Striped entrance awnings (white + player colour) |
-| `logo` | 1200×240 | "HOTELS" clay letters for the board centre |
+To re-trace after changing the image, set `window.CALIB = true` in the console
+before a game starts: a 100 px coordinate grid plus numbered cells and dashed
+plot boxes overlay the board so you can read off new `CTRL`/`PLOTS` coordinates.
 
-A consistent style across all images matters more than exact pixel sizes —
-everything is scaled to fit (keep roughly these aspect ratios).
+Other optional overrides (drop PNGs in `docs/assets/clay/` + add their keys to
+the manifest): `car-red/-blue/-green/-yellow` tokens, `building-main`,
+`building-wing`, `pool`, `awning-<colour>`, and `icon-<special>` chips.
 
 ## Code layout
 

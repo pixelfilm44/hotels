@@ -161,117 +161,169 @@
     el('feColorMatrix', { type: 'matrix',
       values: '0 0 0 0 1  0 0 0 0 1  0 0 0 0 0.95  0 0 0 0.05 0' }, gr);
 
+    var hasBoard = !!(window.ClayAssets && ClayAssets.url('board'));
+
     // board base + terrain regions
-    if (!assetImage('board', 0, 0, BW, BH, svg)) {
+    if (assetImage('board', 0, 0, BW, BH, svg)) {
+      // image supplies all the static art
+    } else {
       el('rect', { x: 0, y: 0, width: BW, height: BH, fill: '#4e8a56' }, svg);
       var terrain = el('g', { filter: 'url(#fSoft)', opacity: 0.92 }, svg);
-      [ ['#e6d6a2', 120, 60, 150, 95],     // sand, top-left (Surf Shack)
-        ['#b98f63', 360, 60, 130, 80],     // earth, top-middle (Lagoon)
-        ['#9fd3a6', 205, 330, 150, 130],   // bright grass island (Meridian)
-        ['#e7a9b0', 540, 360, 130, 95],    // clay-red flats (Casa Sol)
-        ['#8fb9d8', 150, 470, 200, 130],   // water, bottom-left
-        ['#d8c98a', 560, 150, 120, 90]     // sand, right (Alpine)
+      [ ['#e6d6a2', 240, 120, 300, 190],
+        ['#b98f63', 720, 120, 260, 160],
+        ['#9fd3a6', 410, 660, 300, 260],
+        ['#e7a9b0', 1080, 720, 260, 190],
+        ['#8fb9d8', 300, 940, 400, 260],
+        ['#d8c98a', 1120, 300, 240, 180]
       ].forEach(function (r) {
         el('ellipse', { cx: r[1], cy: r[2], rx: r[3], ry: r[4], fill: r[0] }, terrain);
       });
+      // winding road ribbon under the tiles
+      var roadD = loopPath(G.TRACK);
+      el('path', { d: roadD, fill: 'none', stroke: '#2c2c33',
+        'stroke-width': C + 26, 'stroke-linejoin': 'round', 'stroke-linecap': 'round',
+        opacity: 0.32, filter: 'url(#fSoft)' }, svg);
+      el('path', { d: roadD, fill: 'none', stroke: '#3a3a44',
+        'stroke-width': C + 18, 'stroke-linejoin': 'round' }, svg);
     }
 
-    // winding road ribbon under the tiles
-    var roadD = loopPath(G.TRACK);
-    el('path', { d: roadD, fill: 'none', stroke: '#2c2c33',
-      'stroke-width': C + 13, 'stroke-linejoin': 'round', 'stroke-linecap': 'round',
-      opacity: 0.32, filter: 'url(#fSoft)' }, svg);           // soft road shadow
-    el('path', { d: roadD, fill: 'none', stroke: '#3a3a44',
-      'stroke-width': C + 9, 'stroke-linejoin': 'round' }, svg);
-    el('path', { d: roadD, fill: 'none', stroke: '#4a4a57',
-      'stroke-width': C + 4, 'stroke-linejoin': 'round', 'stroke-dasharray': '1 7',
-      'stroke-linecap': 'round', opacity: 0.5 }, svg);
-
-    var gPlotsBase = el('g', { filter: 'url(#fShadow)' }, svg);
-    var gWob = el('g', { filter: 'url(#fWobble)' }, svg);
-    gSquares = el('g', { filter: 'url(#fShadow)' }, gWob);
+    var gPlotsBase = el('g', { filter: hasBoard ? '' : 'url(#fShadow)' }, svg);
+    var gWob = el('g', hasBoard ? {} : { filter: 'url(#fWobble)' }, svg);
+    gSquares = el('g', hasBoard ? {} : { filter: 'url(#fShadow)' }, gWob);
     gPlotsDyn = el('g', {}, svg);
     gEntrances = el('g', {}, svg);
     gDanger = el('g', {}, svg);
     gHighlight = el('g', {}, svg);
     gTokens = el('g', {}, svg);
 
-    // centre title
-    var cx = BW / 2, cy = BH / 2 + 6;
-    if (!assetImage('logo', cx - 130, cy - 34, 260, 54, svg)) {
-      txt(svg, cx, cy, 'H O T E L S', 26,
-        { fill: '#f3edd9', 'font-weight': 'bold', 'letter-spacing': '3', filter: 'url(#fShadow)' });
-      txt(svg, cx, cy + 19, 'clay tycoon', 10, { fill: '#cfe0c2' });
+    // centre title (only on the vector board)
+    if (!hasBoard) {
+      var cx = BW / 2, cy = BH / 2 + 6;
+      txt(svg, cx, cy, 'H O T E L S', 50,
+        { fill: '#f3edd9', 'font-weight': 'bold', 'letter-spacing': '6', filter: 'url(#fShadow)' });
+      txt(svg, cx, cy + 36, 'clay tycoon', 20, { fill: '#cfe0c2' });
     }
 
-    // plots (free-positioned rects, inside & outside the loop)
+    // plots: vector fill+label, or invisible click target over the image
     G.PLOTS.forEach(function (pl, i) {
       var h = G.HOTELS[i];
-      var pcx = pl.x + pl.w / 2, pcy = pl.y + pl.h / 2;
+      var pcx = pl.x + pl.w / 2;
       var g = el('g', { 'data-plot': i, cursor: 'pointer' }, gPlotsBase);
-      var ak = 'plot-' + pl.w + 'x' + pl.h;
-      if (assetImage(ak, pl.x, pl.y, pl.w, pl.h, g)) {
+      if (hasBoard) {
         el('rect', { x: pl.x, y: pl.y, width: pl.w, height: pl.h, rx: 13,
-          fill: h.color, opacity: 0.4 }, g);
+          fill: 'transparent' }, g);
       } else {
         el('rect', { x: pl.x, y: pl.y, width: pl.w, height: pl.h, rx: 13,
           fill: h.color, stroke: INK, 'stroke-width': 2.4 }, g);
         el('rect', { x: pl.x + 4, y: pl.y + 3, width: pl.w - 8, height: 5, rx: 3,
           fill: '#ffffff', opacity: 0.2 }, g);
+        txt(g, pcx, pl.y + 22, h.name.toUpperCase(), 16,
+          { fill: '#2b2620', 'font-weight': 'bold', 'letter-spacing': '0.6' });
+        txt(g, pcx, pl.y + 40, '★'.repeat(h.stars), 15, { fill: '#6b5210' });
       }
-      txt(g, pcx, pl.y + 16, h.name.toUpperCase(), 10,
-        { fill: '#2b2620', 'font-weight': 'bold', 'letter-spacing': '0.6' });
-      txt(g, pcx, pl.y + 28, '★'.repeat(h.stars), 9, { fill: '#6b5210' });
       g.addEventListener('click', function () { if (onPlot) onPlot(i); });
     });
 
-    // track tiles (rotated to the road tangent; labels stay upright)
+    // track tiles — drawn on the vector board; click targets + dot on the image
     G.TRACK.forEach(function (pos, i) {
       var type = G.SPECIALS[i] || 'plain';
+      if (hasBoard) {
+        var hit = el('g', { 'data-sq': i, cursor: 'pointer' }, gSquares);
+        el('circle', { cx: pos.x, cy: pos.y, r: C * 0.5, fill: 'transparent' }, hit);
+        if (type !== 'plain') {
+          el('circle', { cx: pos.x, cy: pos.y, r: 21, fill: SQ_FILL[type],
+            stroke: INK, 'stroke-width': 2, filter: 'url(#fShadow)' }, hit);
+          el('circle', { cx: pos.x, cy: pos.y - 6, r: 14, fill: '#fff', opacity: 0.16 }, hit);
+          drawIcon(hit, type, pos.x, pos.y);
+        } else if (G.SHARED[i]) {
+          var o2 = G.SHARED[i], s2 = 13;
+          el('circle', { cx: pos.x, cy: pos.y, r: 16, fill: '#1d2330', opacity: 0.55 }, hit);
+          el('path', { d: 'M' + pos.x + ' ' + (pos.y - s2) + ' L' + (pos.x + s2) + ' ' + pos.y +
+            ' L' + pos.x + ' ' + (pos.y + s2) + ' Z', fill: G.HOTELS[o2[1]].color,
+            stroke: INK, 'stroke-width': 1.8 }, hit);
+          el('path', { d: 'M' + pos.x + ' ' + (pos.y - s2) + ' L' + (pos.x - s2) + ' ' + pos.y +
+            ' L' + pos.x + ' ' + (pos.y + s2) + ' Z', fill: G.HOTELS[o2[0]].color,
+            stroke: INK, 'stroke-width': 1.8 }, hit);
+          el('path', { d: 'M' + pos.x + ' ' + (pos.y - s2) + ' L' + (pos.x + s2) + ' ' + pos.y +
+            ' L' + pos.x + ' ' + (pos.y + s2) + ' L' + (pos.x - s2) + ' ' + pos.y + ' Z',
+            fill: 'none', stroke: INK, 'stroke-width': 1.8 }, hit);
+        } else if (G.SQUARE_PLOT[i] !== undefined) {
+          el('circle', { cx: pos.x, cy: pos.y, r: 9, fill: G.HOTELS[G.SQUARE_PLOT[i]].color,
+            stroke: INK, 'stroke-width': 2 }, hit);
+        }
+        hit.addEventListener('click', function () { if (onSquare) onSquare(i); });
+        return;
+      }
       var g = el('g', { 'data-sq': i, cursor: 'pointer',
         transform: 'rotate(' + pos.a.toFixed(1) + ' ' + pos.x.toFixed(1) + ' ' + pos.y.toFixed(1) + ')'
       }, gSquares);
-      if (assetImage('square', pos.x - C / 2, pos.y - C / 2, C, C, g)) {
-        if (type !== 'plain')
-          el('rect', { x: pos.x - C / 2 + 1, y: pos.y - C / 2 + 1, width: C - 2, height: C - 2,
-            rx: 8, fill: SQ_FILL[type], opacity: 0.4 }, g);
-      } else {
-        clayRectAt(g, pos.x, pos.y, C - 2, C - 2, SQ_FILL[type], 8);
-      }
+      clayRectAt(g, pos.x, pos.y, C - 2, C - 2, SQ_FILL[type], 8);
       g.addEventListener('click', function () { if (onSquare) onSquare(i); });
 
-      // upright overlay (icons/labels/markers)
       var u = el('g', { 'data-sq': i, cursor: 'pointer' }, gSquares);
       if (type !== 'plain') {
         drawIcon(u, type, pos.x, pos.y - 3);
-        txt(u, pos.x, pos.y + C / 2 - 5, SQ_LABEL[type], 5.4,
+        txt(u, pos.x, pos.y + C / 2 - 7, SQ_LABEL[type], 9,
           { fill: INK, 'font-weight': 'bold', 'letter-spacing': '0.3' });
       } else if (G.SHARED[i]) {
-        // contested square: split diamond showing both racing hotels
-        var o = G.SHARED[i], s = 6.5;
+        var o = G.SHARED[i], s = 9;
         el('path', { d: 'M' + pos.x + ' ' + (pos.y - s) + ' L' + (pos.x + s) + ' ' + pos.y +
           ' L' + pos.x + ' ' + (pos.y + s) + ' Z', fill: G.HOTELS[o[1]].color,
-          stroke: INK, 'stroke-width': 1.4 }, u);
+          stroke: INK, 'stroke-width': 1.6 }, u);
         el('path', { d: 'M' + pos.x + ' ' + (pos.y - s) + ' L' + (pos.x - s) + ' ' + pos.y +
           ' L' + pos.x + ' ' + (pos.y + s) + ' Z', fill: G.HOTELS[o[0]].color,
-          stroke: INK, 'stroke-width': 1.4 }, u);
+          stroke: INK, 'stroke-width': 1.6 }, u);
         el('path', { d: 'M' + pos.x + ' ' + (pos.y - s) + ' L' + (pos.x + s) + ' ' + pos.y +
           ' L' + pos.x + ' ' + (pos.y + s) + ' L' + (pos.x - s) + ' ' + pos.y + ' Z',
-          fill: 'none', stroke: INK, 'stroke-width': 1.4 }, u);
+          fill: 'none', stroke: INK, 'stroke-width': 1.6 }, u);
       } else if (G.SQUARE_PLOT[i] !== undefined) {
-        el('rect', { x: pos.x - 4.5, y: pos.y - 4.5, width: 9, height: 9, rx: 2.5,
-          fill: G.HOTELS[G.SQUARE_PLOT[i]].color, stroke: INK, 'stroke-width': 1.5 }, u);
+        el('rect', { x: pos.x - 6, y: pos.y - 6, width: 12, height: 12, rx: 3,
+          fill: G.HOTELS[G.SQUARE_PLOT[i]].color, stroke: INK, 'stroke-width': 1.6 }, u);
       }
       u.addEventListener('click', function () { if (onSquare) onSquare(i); });
     });
 
-    // grain wash over static art
-    el('rect', { x: 0, y: 0, width: BW, height: BH,
-      filter: 'url(#fGrain)', 'pointer-events': 'none' }, svg);
+    if (!hasBoard) {
+      el('rect', { x: 0, y: 0, width: BW, height: BH,
+        filter: 'url(#fGrain)', 'pointer-events': 'none' }, svg);
+    }
+
+    gCalib = el('g', { 'pointer-events': 'none' }, svg);
+    drawCalib();
+
     svg.appendChild(gPlotsDyn); svg.appendChild(gEntrances);
     svg.appendChild(gDanger); svg.appendChild(gHighlight); svg.appendChild(gTokens);
     return svg;
   }
+
+  /* ---------- calibration overlay (dev) ---------- */
+  var gCalib = null;
+  function drawCalib() {
+    if (!gCalib) return;
+    gCalib.innerHTML = '';
+    if (!window.CALIB) return;
+    var x, y;
+    for (x = 0; x <= BW; x += 100) {
+      el('line', { x1: x, y1: 0, x2: x, y2: BH, stroke: '#00e5ff', 'stroke-width': 0.7, opacity: 0.5 }, gCalib);
+      txt(gCalib, x + 2, 14, '' + x, 11, { fill: '#00e5ff', 'text-anchor': 'start' });
+    }
+    for (y = 0; y <= BH; y += 100) {
+      el('line', { x1: 0, y1: y, x2: BW, y2: y, stroke: '#00e5ff', 'stroke-width': 0.7, opacity: 0.5 }, gCalib);
+      txt(gCalib, 2, y - 2, '' + y, 11, { fill: '#00e5ff', 'text-anchor': 'start' });
+    }
+    G.TRACK.forEach(function (pos, i) {
+      el('circle', { cx: pos.x, cy: pos.y, r: 10, fill: G.SPECIALS[i] ? '#ff3b6b' : '#ffd400',
+        stroke: '#000', 'stroke-width': 1 }, gCalib);
+      txt(gCalib, pos.x, pos.y + 4, '' + i, 10, { fill: '#000', 'font-weight': 'bold' });
+    });
+    G.PLOTS.forEach(function (pl, i) {
+      el('rect', { x: pl.x, y: pl.y, width: pl.w, height: pl.h, fill: 'none',
+        stroke: '#ff00e1', 'stroke-width': 2, 'stroke-dasharray': '6 4' }, gCalib);
+      txt(gCalib, pl.x + pl.w / 2, pl.y + pl.h / 2, G.HOTELS[i].name, 13,
+        { fill: '#ff00e1', 'font-weight': 'bold' });
+    });
+  }
+  window.addEventListener('hotels-calib', drawCalib);
 
   /* ---------- dynamic: buildings, owners, entrances ---------- */
   function building(g, x, y, w, h, roofColor, isMain) {
@@ -293,13 +345,13 @@
   }
 
   function pool(g, x, y) {
-    if (assetImage('pool', x, y, 19, 14, g)) return;
-    el('rect', { x: x, y: y, width: 19, height: 14, rx: 5,
-      fill: '#54c4e4', stroke: INK, 'stroke-width': 1.8 }, g);
-    el('path', { d: 'M' + (x + 3) + ' ' + (y + 5) + ' q 2 -2 4 0 q 2 2 4 0',
-      fill: 'none', stroke: '#d9f4fc', 'stroke-width': 1.4, 'stroke-linecap': 'round' }, g);
-    el('path', { d: 'M' + (x + 6) + ' ' + (y + 9.5) + ' q 2 -2 4 0 q 2 2 4 0',
-      fill: 'none', stroke: '#d9f4fc', 'stroke-width': 1.4, 'stroke-linecap': 'round' }, g);
+    if (assetImage('pool', x, y, 32, 24, g)) return;
+    el('rect', { x: x, y: y, width: 32, height: 24, rx: 8,
+      fill: '#54c4e4', stroke: INK, 'stroke-width': 2.2 }, g);
+    el('path', { d: 'M' + (x + 5) + ' ' + (y + 9) + ' q 3.5 -3 7 0 q 3.5 3 7 0',
+      fill: 'none', stroke: '#d9f4fc', 'stroke-width': 2, 'stroke-linecap': 'round' }, g);
+    el('path', { d: 'M' + (x + 10) + ' ' + (y + 16) + ' q 3.5 -3 7 0 q 3.5 3 7 0',
+      fill: 'none', stroke: '#d9f4fc', 'stroke-width': 2, 'stroke-linecap': 'round' }, g);
   }
 
   function drawPlotDynamics(view, players) {
@@ -312,23 +364,23 @@
       var g = el('g', { 'pointer-events': 'none' }, gPlotsDyn);
       if (pl.owner) {
         el('rect', { x: geo.x, y: geo.y, width: geo.w, height: geo.h,
-          fill: 'none', stroke: colorOf[pl.owner] || '#fff', 'stroke-width': 4, rx: 13 }, g);
-        el('circle', { cx: geo.x + geo.w - 12, cy: geo.y + 12, r: 5.5,
-          fill: colorOf[pl.owner], stroke: INK, 'stroke-width': 1.8 }, g);
+          fill: 'none', stroke: colorOf[pl.owner] || '#fff', 'stroke-width': 5, rx: 16 }, g);
+        el('circle', { cx: geo.x + geo.w - 16, cy: geo.y + 16, r: 10,
+          fill: colorOf[pl.owner], stroke: INK, 'stroke-width': 2.2 }, g);
       }
-      var pad = 9, slotW = 25;
+      var pad = 14, slotW = 42;
       var perRow = Math.max(1, Math.floor((geo.w - pad * 2) / slotW));
-      var bx0 = geo.x + pad + 2, by0 = geo.y + 33;
+      var bx0 = geo.x + pad + 2, by0 = geo.y + 46;
       var n = pl.stages + (pl.facility ? 1 : 0);
       for (var s = 0; s < n; s++) {
         var row = Math.floor(s / perRow), col = s % perRow;
-        var x = bx0 + col * slotW, y = by0 + row * 33;
+        var x = bx0 + col * slotW, y = by0 + row * 56;
         if (s < pl.stages) {
           var isMain = s === 0;
-          building(g, x, y + (isMain ? 0 : 6), isMain ? 21 : 17, isMain ? 30 : 24,
+          building(g, x, y + (isMain ? 0 : 10), isMain ? 34 : 28, isMain ? 50 : 40,
             darken(h.color, 0.72), isMain);
         } else {
-          pool(g, x, y + 18);
+          pool(g, x, y + 30);
         }
       }
     });
@@ -336,7 +388,7 @@
 
   var awnSeq = 0;
   function awning(g, cx, cy, ang, color) {
-    var w = 24, h = 9;
+    var w = 42, h = 16;
     var key = 'awning-' + COLOR_KEY[color];
     var gg = el('g', { transform: 'rotate(' + ang.toFixed(1) + ' ' + cx.toFixed(1) + ' ' + cy.toFixed(1) + ')' }, g);
     if (assetImage(key, cx - w / 2, cy - h / 2 - 1, w, h + 6, gg)) return;
@@ -377,7 +429,7 @@
 
   /* ---------- tokens with hop animation ---------- */
   function tokenOffset(idx) {
-    var offs = [[-9, -9], [9, -9], [-9, 9], [9, 9]];
+    var offs = [[-15, -13], [15, -13], [-15, 13], [15, 13]];
     return offs[idx % 4];
   }
   function tokenXY(pos, idx) {
@@ -391,12 +443,12 @@
       var t = tokenEls[p.id];
       if (!t) {
         var g = el('g', { class: 'token' }, gTokens);
-        el('circle', { cx: 0, cy: 0, r: 15, fill: 'rgba(255,255,230,0.72)',
-          stroke: INK, 'stroke-width': 1.8, class: 'token-ring' }, g);
+        el('circle', { cx: 0, cy: 0, r: 25, fill: 'rgba(255,255,230,0.72)',
+          stroke: INK, 'stroke-width': 2.2, class: 'token-ring' }, g);
         var url = window.ClayAssets && ClayAssets.url('car-' + COLOR_KEY[p.color]);
         var inner = el('g', { class: 'token-car' }, g);
-        if (url) el('image', { href: url, x: -16, y: -14, width: 32, height: 26 }, inner);
-        else drawCar(inner, p.color);
+        if (url) el('image', { href: url, x: -28, y: -24, width: 56, height: 46 }, inner);
+        else { var sc = el('g', { transform: 'scale(1.7)' }, inner); drawCar(sc, p.color); }
         t = tokenEls[p.id] = { g: g, pos: p.pos, timer: null };
         setTokenPos(t, p.pos, idx);
       }

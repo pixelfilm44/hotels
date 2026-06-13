@@ -19,29 +19,29 @@
   /* 8 original hotels, cheap -> grand.
      rates[i] = price per night when (stagesBuilt-1 + facility) === i */
   var HOTELS = [
-    { id: 0, name: 'Surf Shack',    abbr: 'SS', stars: 1, color: '#7fd4c1', land: 500,
-      stages: [1000, 500],            facility: { name: 'Tiki Pool',   cost: 500 },
+    { id: 0, name: 'Waikiri',   abbr: 'WK', stars: 1, color: '#e6c878', land: 500,
+      stages: [1000, 500],            facility: { name: 'Beach Bar',   cost: 500 },
       entrance: 500,  rates: [100, 150, 250] },
-    { id: 1, name: 'Cactus Court', abbr: 'CC',  stars: 1, color: '#dccb84', land: 700,
-      stages: [1200, 700],            facility: { name: 'Cantina',     cost: 600 },
+    { id: 1, name: 'Hábel',     abbr: 'HB', stars: 1, color: '#a9764e', land: 700,
+      stages: [1200, 700],            facility: { name: 'Bazaar',      cost: 600 },
       entrance: 500,  rates: [150, 200, 300] },
-    { id: 2, name: 'Lagoon Palms', abbr: 'LP',  stars: 2, color: '#8fd48f', land: 1000,
-      stages: [1800, 900, 900],       facility: { name: 'Lagoon Pool', cost: 800 },
+    { id: 2, name: "L'Étoile",  abbr: 'LE', stars: 2, color: '#e0b878', land: 1000,
+      stages: [1800, 900, 900],       facility: { name: 'Casino',      cost: 800 },
       entrance: 600,  rates: [200, 300, 400, 550] },
-    { id: 3, name: 'Alpine Lodge', abbr: 'AL',  stars: 3, color: '#b9c7e8', land: 1500,
-      stages: [2500, 1200, 1200],     facility: { name: 'Ski Lift',    cost: 1000 },
+    { id: 3, name: 'Royal',     abbr: 'RY', stars: 3, color: '#5fa45f', land: 1500,
+      stages: [2500, 1200, 1200],     facility: { name: 'Golf Course', cost: 1000 },
       entrance: 700,  rates: [300, 450, 600, 800] },
-    { id: 4, name: 'Casa Sol', abbr: 'CS',      stars: 3, color: '#f0b27e', land: 1800,
-      stages: [3000, 1500, 1500],     facility: { name: 'Beach Club',  cost: 1200 },
+    { id: 4, name: 'Fujiyama',  abbr: 'FJ', stars: 3, color: '#d77ab5', land: 1800,
+      stages: [3000, 1500, 1500],     facility: { name: 'Onsen Spa',   cost: 1200 },
       entrance: 800,  rates: [350, 500, 700, 950] },
-    { id: 5, name: 'Pagoda Garden', abbr: 'PG', stars: 4, color: '#e89ab0', land: 2200,
-      stages: [3500, 1800, 1800, 1800], facility: { name: 'Zen Garden', cost: 1500 },
+    { id: 5, name: 'Boomerang', abbr: 'BM', stars: 4, color: '#e0883e', land: 2200,
+      stages: [3500, 1800, 1800, 1800], facility: { name: 'Safari Pool', cost: 1500 },
       entrance: 900,  rates: [400, 600, 800, 1000, 1300] },
-    { id: 6, name: 'Sky Mirage', abbr: 'SM',    stars: 5, color: '#c9a6e8', land: 2800,
-      stages: [4500, 2200, 2200, 2200], facility: { name: 'Sky Casino', cost: 2000 },
+    { id: 6, name: 'President', abbr: 'PR', stars: 5, color: '#9a7fc8', land: 2800,
+      stages: [4500, 2200, 2200, 2200], facility: { name: 'Sky Lounge', cost: 2000 },
       entrance: 1000, rates: [500, 750, 1000, 1300, 1700] },
-    { id: 7, name: 'The Meridian', abbr: 'MD',  stars: 5, color: '#ead98a', land: 3500,
-      stages: [6000, 3000, 3000, 3000], facility: { name: 'Grand Spa',  cost: 2500 },
+    { id: 7, name: 'Safari',    abbr: 'SF', stars: 5, color: '#cdb87f', land: 3500,
+      stages: [6000, 3000, 3000, 3000], facility: { name: 'Grand Lodge', cost: 2500 },
       entrance: 1200, rates: [600, 900, 1200, 1600, 2100] }
   ];
 
@@ -50,15 +50,19 @@
      Hotels sit inside AND outside the road; square<->plot adjacency is
      computed by distance, so one square can serve two facing hotels —
      and only ONE entrance fits on a square (the entrance race). */
-  var BOARD = { w: 780, h: 560 };
+  var BOARD = { w: 1560, h: 1120 };
   var N_SQUARES = 42;
 
+  /* Control points trace the painted road centerline, clockwise, in board px
+     (which equal the board.png pixels). Tuned against the image. */
   var CTRL = [
-    { x: 140, y: 120 }, { x: 235, y: 80 },  { x: 340, y: 90 },  { x: 425, y: 152 },
-    { x: 505, y: 92 },  { x: 610, y: 95 },  { x: 680, y: 165 }, { x: 685, y: 255 },
-    { x: 635, y: 320 }, { x: 655, y: 390 }, { x: 575, y: 445 }, { x: 445, y: 450 },
-    { x: 300, y: 443 }, { x: 160, y: 435 }, { x: 85, y: 370 },  { x: 68, y: 262 },
-    { x: 82, y: 165 }
+    { x: 1260, y: 180 }, { x: 1400, y: 250 }, { x: 1460, y: 400 }, { x: 1455, y: 545 },
+    { x: 1410, y: 690 }, { x: 1330, y: 805 }, { x: 1190, y: 860 }, { x: 1040, y: 865 },
+    { x: 890, y: 910 },  { x: 740, y: 955 },  { x: 560, y: 915 },  { x: 410, y: 865 },
+    { x: 270, y: 795 },  { x: 165, y: 675 },  { x: 120, y: 548 },  { x: 140, y: 425 },
+    { x: 215, y: 330 },  { x: 330, y: 275 },  { x: 460, y: 255 },  { x: 560, y: 335 },
+    { x: 670, y: 258 },  { x: 780, y: 165 },  { x: 862, y: 95 },   { x: 970, y: 100 },
+    { x: 1055, y: 205 }, { x: 1145, y: 212 }, { x: 1235, y: 185 }
   ];
 
   function sampleLoop(pts, n) {
@@ -109,28 +113,39 @@
   var GRID = BOARD;                            // legacy alias
 
   /* Special squares (all other squares are plain road / buying / entrance squares) */
+  /* Mapped onto the painted board: 0=PARTENZA, 16=BANCA, 37=MUNICIPIO; the rest
+     fall on cells no hotel needs (so hotels keep their buying squares). */
   var SPECIALS = {
-    0: 'start', 5: 'permission', 11: 'bank', 16: 'permission',
-    18: 'free-entrance', 21: 'cityhall', 24: 'permission', 27: 'free-build',
-    31: 'permission', 33: 'free-entrance', 36: 'permission', 39: 'free-build'
+    0: 'start',
+    5: 'permission',
+    6: 'free-entrance',
+    12: 'free-build',
+    13: 'permission',
+    16: 'bank',
+    18: 'permission',
+    28: 'free-entrance',
+    33: 'permission',
+    36: 'permission',
+    37: 'cityhall',
+    39: 'free-build'
   };
-  SPECIALS[41] = 'permission';
 
-  /* Hotel plots in board pixels — inside and outside the road. */
+  /* Hotel plots in board pixels, placed over the painted regions of board.png.
+     Order matches HOTELS[]. Tuned against the image. */
   var PLOTS = [
-    { x: 40,  y: 6,   w: 235, h: 64 },   // Surf Shack      (outside, top-left beach)
-    { x: 145, y: 118, w: 150, h: 84 },   // Cactus Court    (inside, faces Surf Shack)
-    { x: 365, y: 14,  w: 150, h: 85 },   // Lagoon Palms    (outside, above the dip)
-    { x: 495, y: 135, w: 150, h: 88 },   // Alpine Lodge    (inside, top-right lobe)
-    { x: 470, y: 325, w: 135, h: 82 },   // Casa Sol        (inside, bottom-right)
-    { x: 430, y: 462, w: 160, h: 84 },   // Pagoda Garden   (outside, faces Casa Sol)
-    { x: 150, y: 455, w: 175, h: 85 },   // Sky Mirage      (outside, bottom-left)
-    { x: 115, y: 285, w: 200, h: 115 }   // The Meridian    (inside island, faces Sky Mirage)
+    { x: 70,   y: 45,  w: 330, h: 170 },  // Waikiri      top-left beach
+    { x: 300,  y: 28,  w: 200, h: 165 },  // Hábel        top-center brown (left)
+    { x: 1245, y: 35,  w: 265, h: 165 },  // L'Étoile     top-right tan
+    { x: 200,  y: 415, w: 290, h: 195 },  // Royal        left green lobe
+    { x: 1015, y: 575, w: 330, h: 190 },  // Fujiyama     right pink lobe
+    { x: 1180, y: 825, w: 355, h: 225 },  // Boomerang    bottom-right orange
+    { x: 55,   y: 805, w: 335, h: 235 },  // President    bottom-left purple
+    { x: 520,  y: 35,  w: 210, h: 150 }   // Safari       top-center brown (right)
   ];
 
   /* Adjacency by distance: a plain square within reach of a plot can host its
      entrance. Shared squares (two facing plots) hold only ONE entrance ever. */
-  var ADJ_DIST = 46;
+  var ADJ_DIST = 82;
   var PLOT_SQUARES = PLOTS.map(function () { return []; });
   var SQUARE_PLOT = {};
   TRACK.forEach(function (sq, i) {
