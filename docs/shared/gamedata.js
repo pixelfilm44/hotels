@@ -55,14 +55,18 @@
 
   /* Control points trace the painted road centerline, clockwise, in board px
      (which equal the board.png pixels). Tuned against the image. */
+  /* Ordered so index 0 = PARTENZA (the start), travelling clockwise down the
+     right side per the painted arrow. */
   var CTRL = [
-    { x: 1260, y: 180 }, { x: 1400, y: 250 }, { x: 1460, y: 400 }, { x: 1455, y: 545 },
-    { x: 1410, y: 690 }, { x: 1330, y: 805 }, { x: 1190, y: 860 }, { x: 1040, y: 865 },
-    { x: 890, y: 910 },  { x: 740, y: 955 },  { x: 560, y: 915 },  { x: 410, y: 865 },
-    { x: 270, y: 795 },  { x: 165, y: 675 },  { x: 120, y: 548 },  { x: 140, y: 425 },
-    { x: 215, y: 330 },  { x: 330, y: 275 },  { x: 460, y: 255 },  { x: 560, y: 335 },
-    { x: 670, y: 258 },  { x: 780, y: 165 },  { x: 862, y: 95 },   { x: 970, y: 100 },
-    { x: 1055, y: 205 }, { x: 1145, y: 212 }, { x: 1235, y: 185 }
+    { x: 1465, y: 440 }, { x: 1468, y: 600 }, { x: 1440, y: 755 }, { x: 1370, y: 855 },
+    { x: 1255, y: 892 }, { x: 1120, y: 888 }, { x: 985, y: 898 },  { x: 855, y: 918 },
+    { x: 720, y: 945 },  { x: 590, y: 932 },  { x: 470, y: 902 },  { x: 380, y: 860 },
+    { x: 285, y: 795 },  { x: 190, y: 725 },  { x: 140, y: 650 },  { x: 118, y: 560 },
+    { x: 132, y: 470 },  { x: 200, y: 398 },  { x: 300, y: 320 },  { x: 420, y: 298 },
+    { x: 530, y: 300 },  { x: 620, y: 318 },  { x: 710, y: 298 },  { x: 790, y: 250 },
+    { x: 845, y: 178 },  { x: 897, y: 103 },  { x: 987, y: 93 },   { x: 1072, y: 155 },
+    { x: 1088, y: 258 }, { x: 1158, y: 243 }, { x: 1245, y: 188 }, { x: 1265, y: 160 },
+    { x: 1380, y: 215 }, { x: 1450, y: 320 }
   ];
 
   function sampleLoop(pts, n) {
@@ -113,34 +117,46 @@
   var GRID = BOARD;                            // legacy alias
 
   /* Special squares (all other squares are plain road / buying / entrance squares) */
-  /* Mapped onto the painted board: 0=PARTENZA, 16=BANCA, 37=MUNICIPIO; the rest
-     fall on cells no hotel needs (so hotels keep their buying squares). */
-  var SPECIALS = {
-    0: 'start',
-    5: 'permission',
-    6: 'free-entrance',
-    12: 'free-build',
-    13: 'permission',
-    16: 'bank',
-    18: 'permission',
-    28: 'free-entrance',
-    33: 'permission',
-    36: 'permission',
-    37: 'cityhall',
-    39: 'free-build'
-  };
+  /* Special squares are pinned to painted-board pixel locations, then snapped to
+     the nearest track cell — so they stay correct if the path is retuned.
+     start=PARTENZA, bank=BANCA, cityhall=MUNICIPIO; rest spread around the loop. */
+  var SPECIAL_TARGETS = [
+    { x: 1465, y: 440, t: 'start' },
+    { x: 705,  y: 945, t: 'bank' },
+    { x: 1000, y: 100, t: 'cityhall' },
+    { x: 1468, y: 600, t: 'permission' },
+    { x: 1255, y: 892, t: 'free-entrance' },
+    { x: 470,  y: 902, t: 'permission' },
+    { x: 190,  y: 725, t: 'free-build' },
+    { x: 118,  y: 560, t: 'permission' },
+    { x: 300,  y: 320, t: 'permission' },
+    { x: 710,  y: 298, t: 'free-entrance' },
+    { x: 1245, y: 188, t: 'permission' },
+    { x: 985,  y: 898, t: 'free-build' }
+  ];
+  var SPECIALS = {};
+  SPECIAL_TARGETS.forEach(function (tg) {
+    var best = -1, bestD = 1e18;
+    TRACK.forEach(function (sq, i) {
+      if (SPECIALS[i] !== undefined) return;
+      var d = (sq.x - tg.x) * (sq.x - tg.x) + (sq.y - tg.y) * (sq.y - tg.y);
+      if (d < bestD) { bestD = d; best = i; }
+    });
+    if (best >= 0) SPECIALS[best] = tg.t;
+  });
 
-  /* Hotel plots in board pixels, placed over the painted regions of board.png.
-     Order matches HOTELS[]. Tuned against the image. */
+  /* Invisible adjacency/click boxes — extended toward the road so each hotel
+     reaches its track cells. The visible region (ownership outline + buildings)
+     comes from POLYS below. Order matches HOTELS[]. */
   var PLOTS = [
-    { x: 70,   y: 45,  w: 330, h: 170 },  // Waikiri      top-left beach
-    { x: 300,  y: 28,  w: 200, h: 165 },  // Hábel        top-center brown (left)
-    { x: 1245, y: 35,  w: 265, h: 165 },  // L'Étoile     top-right tan
-    { x: 200,  y: 415, w: 290, h: 195 },  // Royal        left green lobe
-    { x: 1015, y: 575, w: 330, h: 190 },  // Fujiyama     right pink lobe
-    { x: 1180, y: 825, w: 355, h: 225 },  // Boomerang    bottom-right orange
-    { x: 55,   y: 805, w: 335, h: 235 },  // President    bottom-left purple
-    { x: 520,  y: 35,  w: 210, h: 150 }   // Safari       top-center brown (right)
+    { x: 250,  y: 160, w: 268, h: 185 },  // Waikiri
+    { x: 445,  y: 120, w: 240, h: 205 },  // Hábel
+    { x: 1180, y: 40,  w: 345, h: 200 },  // L'Étoile
+    { x: 150,  y: 415, w: 305, h: 210 },  // Royal
+    { x: 1010, y: 560, w: 425, h: 245 },  // Fujiyama
+    { x: 1150, y: 820, w: 390, h: 245 },  // Boomerang
+    { x: 55,   y: 775, w: 365, h: 250 },  // President
+    { x: 694,  y: 60,  w: 180, h: 190 }   // Safari
   ];
 
   /* Polygons tracing each painted hotel region (board px), used to outline

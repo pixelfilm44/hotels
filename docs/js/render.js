@@ -384,9 +384,18 @@
             fill: oc, stroke: INK, 'stroke-width': 2.2 }, g);
         }
       }
+      // buildings render on the painted region (polygon bbox) when available
+      var area = geo;
+      if (hasBoardImg && G.POLYS && G.POLYS[i]) {
+        var xs = G.POLYS[i].map(function (p) { return p[0]; });
+        var ys = G.POLYS[i].map(function (p) { return p[1]; });
+        var minx = Math.min.apply(null, xs), maxx = Math.max.apply(null, xs);
+        var miny = Math.min.apply(null, ys), maxy = Math.max.apply(null, ys);
+        area = { x: minx, y: miny, w: maxx - minx, h: maxy - miny };
+      }
       var pad = 14, slotW = 42;
-      var perRow = Math.max(1, Math.floor((geo.w - pad * 2) / slotW));
-      var bx0 = geo.x + pad + 2, by0 = geo.y + 46;
+      var perRow = Math.max(1, Math.floor((area.w - pad * 2) / slotW));
+      var bx0 = area.x + pad + 2, by0 = area.y + 46;
       var n = pl.stages + (pl.facility ? 1 : 0);
       for (var s = 0; s < n; s++) {
         var row = Math.floor(s / perRow), col = s % perRow;
