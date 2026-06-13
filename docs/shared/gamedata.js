@@ -143,6 +143,20 @@
     { x: 520,  y: 35,  w: 210, h: 150 }   // Safari       top-center brown (right)
   ];
 
+  /* Polygons tracing each painted hotel region (board px), used to outline
+     ownership on the image board so it hugs the artwork instead of a box.
+     Order matches HOTELS[]. */
+  var POLYS = [
+    [[58,48],[372,38],[398,108],[300,188],[120,206],[44,118]],            // Waikiri
+    [[286,30],[502,28],[506,196],[300,200],[274,104]],                     // Hábel
+    [[1248,40],[1522,38],[1526,200],[1248,202]],                           // L'Étoile
+    [[176,426],[360,414],[486,456],[470,560],[330,626],[190,606],[150,506]], // Royal
+    [[1014,586],[1180,564],[1322,606],[1322,726],[1170,796],[1030,762],[1000,666]], // Fujiyama
+    [[1300,836],[1540,836],[1540,1064],[1176,1064],[1182,906]],            // Boomerang
+    [[50,800],[396,800],[396,1056],[50,1056]],                            // President
+    [[520,34],[746,34],[746,190],[520,190]]                               // Safari
+  ];
+
   /* Adjacency by distance: a plain square within reach of a plot can host its
      entrance. Shared squares (two facing plots) hold only ONE entrance ever. */
   var ADJ_DIST = 82;
@@ -194,7 +208,7 @@
     START_CASH: START_CASH, BANK_BONUS: BANK_BONUS, AUCTION_MS: AUCTION_MS,
     CELL: CELL, GRID: GRID, BOARD: BOARD, CTRL: CTRL, COLORS: COLORS, COLOR_NAMES: COLOR_NAMES,
     STAGE_NAMES: STAGE_NAMES, HOTELS: HOTELS, TRACK: TRACK, SPECIALS: SPECIALS,
-    PLOTS: PLOTS, PLOT_SQUARES: PLOT_SQUARES, SQUARE_PLOT: SQUARE_PLOT,
+    PLOTS: PLOTS, POLYS: POLYS, PLOT_SQUARES: PLOT_SQUARES, SQUARE_PLOT: SQUARE_PLOT,
     SHARED: SHARED, fmt: fmt
   };
 });

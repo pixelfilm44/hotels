@@ -11,6 +11,7 @@
   var CREAM = '#f5ead0';
 
   var svg, gSquares, gPlotsDyn, gEntrances, gDanger, gHighlight, gTokens;
+  var hasBoardImg = false;
   var tokenEls = {};   // pid -> {g, pos, timer}
   var onSquare = null, onPlot = null;
   var selectable = [];
@@ -162,6 +163,7 @@
       values: '0 0 0 0 1  0 0 0 0 1  0 0 0 0 0.95  0 0 0 0.05 0' }, gr);
 
     var hasBoard = !!(window.ClayAssets && ClayAssets.url('board'));
+    hasBoardImg = hasBoard;
 
     // board base + terrain regions
     if (assetImage('board', 0, 0, BW, BH, svg)) {
@@ -363,10 +365,24 @@
       var geo = G.PLOTS[i], h = G.HOTELS[i];
       var g = el('g', { 'pointer-events': 'none' }, gPlotsDyn);
       if (pl.owner) {
-        el('rect', { x: geo.x, y: geo.y, width: geo.w, height: geo.h,
-          fill: 'none', stroke: colorOf[pl.owner] || '#fff', 'stroke-width': 5, rx: 16 }, g);
-        el('circle', { cx: geo.x + geo.w - 16, cy: geo.y + 16, r: 10,
-          fill: colorOf[pl.owner], stroke: INK, 'stroke-width': 2.2 }, g);
+        var oc = colorOf[pl.owner] || '#fff';
+        var poly = G.POLYS && G.POLYS[i];
+        if (hasBoardImg && poly) {
+          // hug the painted region outline
+          var pts = poly.map(function (p) { return p[0] + ',' + p[1]; }).join(' ');
+          el('polygon', { points: pts, fill: oc, opacity: 0.16 }, g);
+          el('polygon', { points: pts, fill: 'none', stroke: oc, 'stroke-width': 6,
+            'stroke-linejoin': 'round', filter: 'url(#fShadow)' }, g);
+          el('polygon', { points: pts, fill: 'none', stroke: '#fff', 'stroke-width': 1.5,
+            'stroke-linejoin': 'round', opacity: 0.5 }, g);
+          el('circle', { cx: poly[0][0], cy: poly[0][1], r: 11,
+            fill: oc, stroke: INK, 'stroke-width': 2.4 }, g);
+        } else {
+          el('rect', { x: geo.x, y: geo.y, width: geo.w, height: geo.h,
+            fill: 'none', stroke: oc, 'stroke-width': 5, rx: 16 }, g);
+          el('circle', { cx: geo.x + geo.w - 16, cy: geo.y + 16, r: 10,
+            fill: oc, stroke: INK, 'stroke-width': 2.2 }, g);
+        }
       }
       var pad = 14, slotW = 42;
       var perRow = Math.max(1, Math.floor((geo.w - pad * 2) / slotW));
