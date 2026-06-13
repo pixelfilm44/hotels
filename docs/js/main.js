@@ -511,7 +511,9 @@
           'City Hall: buy entrances (one per hotel)', box);
         pd.options.forEach(function (o) {
           var h = G.HOTELS[o.plotId];
-          btn(h.name + (freebie ? ' — FREE' : ' — ' + fmt(o.cost)), 'small', function () {
+          var contested = o.squares.filter(function (s) { return G.SHARED[s]; }).length;
+          btn(h.name + (freebie ? ' — FREE' : ' — ' + fmt(o.cost)) +
+            (contested ? '  ⚔×' + contested : ''), 'small', function () {
             S.sel = {
               squares: o.squares,
               make: function (sq) { return { t: 'entrance', plotId: o.plotId, square: sq }; }
@@ -519,6 +521,9 @@
             Render.setSelectable(o.squares);
             box.innerHTML = '';
             el('div', 'prompt-title', 'Tap a highlighted square beside ' + h.name, box);
+            if (contested)
+              el('div', 'prompt-sub', '⚔ A diamond-marked square is contested — if a ' +
+                'rival builds an entrance there first, you lose it. Grab it now!', box);
             btn('Cancel', '', function () {
               S.sel = null; Render.setSelectable([]); renderPrompt();
             }, box);

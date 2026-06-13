@@ -1,10 +1,11 @@
-/* SVG board renderer — claymation style.
+/* SVG board renderer — claymation style, curved winding track.
    Vector clay art by default; images from docs/assets/clay/ override it. */
 (function () {
   'use strict';
   var G = window.GAMEDATA;
   var NS = 'http://www.w3.org/2000/svg';
-  var C = G.CELL; // 48
+  var C = G.CELL;          // square size in px
+  var BW = G.BOARD.w, BH = G.BOARD.h;
 
   var INK = '#262a33';
   var CREAM = '#f5ead0';
@@ -43,7 +44,6 @@
         b = Math.floor((n & 255) * f);
     return 'rgb(' + r + ',' + g + ',' + b + ')';
   }
-  function wob(i) { return (((i * 37) % 7) - 3) * 0.35; } // deterministic clay wobble
 
   function assetImage(key, x, y, w, h, parent) {
     var url = window.ClayAssets && ClayAssets.url(key);
@@ -52,54 +52,67 @@
       preserveAspectRatio: 'xMidYMid meet' }, parent);
   }
 
+  /* smooth closed Catmull-Rom path through points */
+  function loopPath(pts) {
+    var n = pts.length;
+    var d = 'M' + pts[0].x.toFixed(1) + ' ' + pts[0].y.toFixed(1);
+    for (var i = 0; i < n; i++) {
+      var p0 = pts[(i - 1 + n) % n], p1 = pts[i], p2 = pts[(i + 1) % n], p3 = pts[(i + 2) % n];
+      var c1x = p1.x + (p2.x - p0.x) / 6, c1y = p1.y + (p2.y - p0.y) / 6;
+      var c2x = p2.x - (p3.x - p1.x) / 6, c2y = p2.y - (p3.y - p1.y) / 6;
+      d += ' C' + c1x.toFixed(1) + ' ' + c1y.toFixed(1) + ' ' +
+        c2x.toFixed(1) + ' ' + c2y.toFixed(1) + ' ' +
+        p2.x.toFixed(1) + ' ' + p2.y.toFixed(1);
+    }
+    return d + ' Z';
+  }
+
   /* ---------- clay drawing helpers ---------- */
-  function clayRect(g, x, y, w, h, fill, rx, sw) {
-    var r = el('rect', { x: x, y: y, width: w, height: h, rx: rx || 9,
+  function clayRectAt(g, cx, cy, w, h, fill, rx, sw) {
+    el('rect', { x: cx - w / 2, y: cy - h / 2, width: w, height: h, rx: rx || 9,
       fill: fill, stroke: INK, 'stroke-width': sw || 2.2 }, g);
-    el('rect', { x: x + 3, y: y + 2.5, width: w - 6, height: 4, rx: 2.5,
+    el('rect', { x: cx - w / 2 + 3, y: cy - h / 2 + 2.5, width: w - 6, height: 3.4, rx: 2,
       fill: '#ffffff', opacity: 0.22, 'pointer-events': 'none' }, g);
-    return r;
   }
 
   function drawIcon(g, type, cx, cy) {
-    if (assetImage('icon-' + type, cx - 11, cy - 11, 22, 22, g)) return;
+    if (assetImage('icon-' + type, cx - 10, cy - 10, 20, 20, g)) return;
     switch (type) {
       case 'start':
-        txt(g, cx, cy + 7, 'P', 21, { fill: INK, 'font-weight': 'bold' });
+        txt(g, cx, cy + 6, 'P', 18, { fill: INK, 'font-weight': 'bold' });
         break;
       case 'bank':
-        txt(g, cx, cy + 8, '$', 23, { fill: INK, 'font-weight': 'bold' });
+        txt(g, cx, cy + 7, '$', 20, { fill: INK, 'font-weight': 'bold' });
         break;
       case 'cityhall': {
-        el('path', { d: 'M' + (cx - 12) + ' ' + (cy - 2) + ' L' + cx + ' ' + (cy - 11) +
-          ' L' + (cx + 12) + ' ' + (cy - 2) + ' Z', fill: INK }, g);
-        for (var i = -1.5; i <= 1.5; i++)
-          el('rect', { x: cx + i * 6 - 1.6, y: cy - 1, width: 3.2, height: 9, rx: 1.4, fill: INK }, g);
-        el('rect', { x: cx - 12, y: cy + 8, width: 24, height: 3, rx: 1.4, fill: INK }, g);
+        el('path', { d: 'M' + (cx - 10) + ' ' + (cy - 1) + ' L' + cx + ' ' + (cy - 9) +
+          ' L' + (cx + 10) + ' ' + (cy - 1) + ' Z', fill: INK }, g);
+        for (var i = -1; i <= 1; i++)
+          el('rect', { x: cx + i * 5 - 1.4, y: cy, width: 2.8, height: 7, rx: 1.2, fill: INK }, g);
+        el('rect', { x: cx - 10, y: cy + 7, width: 20, height: 2.6, rx: 1.2, fill: INK }, g);
         break;
       }
       case 'permission': {
-        el('rect', { x: cx - 8, y: cy - 11, width: 16, height: 21, rx: 2.5, fill: INK }, g);
+        el('rect', { x: cx - 7, y: cy - 9, width: 14, height: 18, rx: 2.2, fill: INK }, g);
         for (var j = 0; j < 3; j++)
-          el('rect', { x: cx - 5, y: cy - 7 + j * 5, width: 10 - j * 3, height: 2.2, rx: 1.1,
+          el('rect', { x: cx - 4.5, y: cy - 6 + j * 4.5, width: 9 - j * 2.5, height: 2, rx: 1,
             fill: SQ_FILL.permission }, g);
         break;
       }
       case 'free-entrance': {
-        el('rect', { x: cx - 8, y: cy - 11, width: 16, height: 22, rx: 4, fill: INK }, g);
-        el('circle', { cx: cx + 4, cy: cy + 1, r: 1.8, fill: SQ_FILL['free-entrance'] }, g);
+        el('rect', { x: cx - 7, y: cy - 9, width: 14, height: 19, rx: 3.4, fill: INK }, g);
+        el('circle', { cx: cx + 3.4, cy: cy + 1, r: 1.6, fill: SQ_FILL['free-entrance'] }, g);
         break;
       }
       case 'free-build': {
-        el('rect', { x: cx - 10, y: cy - 10, width: 20, height: 9, rx: 4, fill: INK }, g);
-        el('rect', { x: cx - 2, y: cy - 3, width: 4, height: 14, rx: 2, fill: INK }, g);
+        el('rect', { x: cx - 9, y: cy - 9, width: 18, height: 8, rx: 3.4, fill: INK }, g);
+        el('rect', { x: cx - 1.8, y: cy - 3, width: 3.6, height: 12, rx: 1.8, fill: INK }, g);
         break;
       }
     }
   }
 
   function drawCar(g, color) {
-    // clay car, ~32 wide, centred on 0,0
     el('ellipse', { cx: 0, cy: 7, rx: 15, ry: 3.4, fill: '#000', opacity: 0.25 }, g);
     el('rect', { x: -15, y: -5, width: 30, height: 11, rx: 5.5,
       fill: color, stroke: INK, 'stroke-width': 2 }, g);
@@ -114,7 +127,7 @@
     });
   }
 
-  function carMarkup(color) { // standalone SVG markup for the HTML panel
+  function carMarkup(color) {
     var key = 'car-' + COLOR_KEY[color];
     var url = window.ClayAssets && ClayAssets.url(key);
     if (url) return '<img src="' + url + '" class="car-img" alt="">';
@@ -131,35 +144,52 @@
     onSquare = handlers.onSquare;
     onPlot = handlers.onPlot;
     container.innerHTML = '';
-    svg = el('svg', {
-      viewBox: '0 0 ' + (G.GRID.w * C) + ' ' + (G.GRID.h * C), id: 'board'
-    }, null);
+    svg = el('svg', { viewBox: '0 0 ' + BW + ' ' + BH, id: 'board' }, null);
     container.appendChild(svg);
 
     var defs = el('defs', {}, svg);
-    var sh = el('filter', { id: 'fShadow', x: '-20%', y: '-20%', width: '140%', height: '150%' }, defs);
-    el('feDropShadow', { dx: 0, dy: 2.4, stdDeviation: 1.7,
-      'flood-color': '#15241a', 'flood-opacity': 0.5 }, sh);
+    var sh = el('filter', { id: 'fShadow', x: '-30%', y: '-30%', width: '160%', height: '170%' }, defs);
+    el('feDropShadow', { dx: 0, dy: 2.2, stdDeviation: 1.6,
+      'flood-color': '#13241a', 'flood-opacity': 0.5 }, sh);
     var wf = el('filter', { id: 'fWobble', x: '-5%', y: '-5%', width: '110%', height: '110%' }, defs);
-    el('feTurbulence', { type: 'fractalNoise', baseFrequency: 0.016, numOctaves: 2, seed: 7, result: 'n' }, wf);
-    el('feDisplacementMap', { in: 'SourceGraphic', in2: 'n', scale: 3 }, wf);
+    el('feTurbulence', { type: 'fractalNoise', baseFrequency: 0.018, numOctaves: 2, seed: 7, result: 'n' }, wf);
+    el('feDisplacementMap', { in: 'SourceGraphic', in2: 'n', scale: 2.4 }, wf);
+    var soft = el('filter', { id: 'fSoft', x: '-30%', y: '-30%', width: '160%', height: '160%' }, defs);
+    el('feGaussianBlur', { stdDeviation: 11 }, soft);
     var gr = el('filter', { id: 'fGrain' }, defs);
     el('feTurbulence', { type: 'fractalNoise', baseFrequency: 0.8, numOctaves: 2, seed: 4 }, gr);
     el('feColorMatrix', { type: 'matrix',
       values: '0 0 0 0 1  0 0 0 0 1  0 0 0 0 0.95  0 0 0 0.05 0' }, gr);
 
-    // board base: green clay
-    if (!assetImage('board', 0, 0, G.GRID.w * C, G.GRID.h * C, svg)) {
-      el('rect', { x: 0, y: 0, width: G.GRID.w * C, height: G.GRID.h * C, fill: '#447d4c' }, svg);
-      el('rect', { x: C - 6, y: C - 6, width: (G.GRID.w - 2) * C + 12, height: (G.GRID.h - 2) * C + 12,
-        rx: 18, fill: '#4e8a56' }, svg);
-      el('rect', { x: C + 4, y: C + 4, width: (G.GRID.w - 2) * C - 8, height: (G.GRID.h - 2) * C - 8,
-        rx: 14, fill: '#56945e', opacity: 0.7 }, svg);
+    // board base + terrain regions
+    if (!assetImage('board', 0, 0, BW, BH, svg)) {
+      el('rect', { x: 0, y: 0, width: BW, height: BH, fill: '#4e8a56' }, svg);
+      var terrain = el('g', { filter: 'url(#fSoft)', opacity: 0.92 }, svg);
+      [ ['#e6d6a2', 120, 60, 150, 95],     // sand, top-left (Surf Shack)
+        ['#b98f63', 360, 60, 130, 80],     // earth, top-middle (Lagoon)
+        ['#9fd3a6', 205, 330, 150, 130],   // bright grass island (Meridian)
+        ['#e7a9b0', 540, 360, 130, 95],    // clay-red flats (Casa Sol)
+        ['#8fb9d8', 150, 470, 200, 130],   // water, bottom-left
+        ['#d8c98a', 560, 150, 120, 90]     // sand, right (Alpine)
+      ].forEach(function (r) {
+        el('ellipse', { cx: r[1], cy: r[2], rx: r[3], ry: r[4], fill: r[0] }, terrain);
+      });
     }
 
+    // winding road ribbon under the tiles
+    var roadD = loopPath(G.TRACK);
+    el('path', { d: roadD, fill: 'none', stroke: '#2c2c33',
+      'stroke-width': C + 13, 'stroke-linejoin': 'round', 'stroke-linecap': 'round',
+      opacity: 0.32, filter: 'url(#fSoft)' }, svg);           // soft road shadow
+    el('path', { d: roadD, fill: 'none', stroke: '#3a3a44',
+      'stroke-width': C + 9, 'stroke-linejoin': 'round' }, svg);
+    el('path', { d: roadD, fill: 'none', stroke: '#4a4a57',
+      'stroke-width': C + 4, 'stroke-linejoin': 'round', 'stroke-dasharray': '1 7',
+      'stroke-linecap': 'round', opacity: 0.5 }, svg);
+
+    var gPlotsBase = el('g', { filter: 'url(#fShadow)' }, svg);
     var gWob = el('g', { filter: 'url(#fWobble)' }, svg);
     gSquares = el('g', { filter: 'url(#fShadow)' }, gWob);
-    var gPlotsBase = el('g', { filter: 'url(#fShadow)' }, gWob);
     gPlotsDyn = el('g', {}, svg);
     gEntrances = el('g', {}, svg);
     gDanger = el('g', {}, svg);
@@ -167,62 +197,77 @@
     gTokens = el('g', {}, svg);
 
     // centre title
-    var cx = 6.5 * C, cy = 4.9 * C;
-    if (!assetImage('logo', cx - 150, cy - 40, 300, 60, svg)) {
-      txt(svg, cx, cy - 6, 'H O T E L S', 24,
-        { fill: '#f3edd9', 'font-weight': 'bold', 'letter-spacing': '2', filter: 'url(#fShadow)' });
-      txt(svg, cx, cy + 13, 'clay tycoon', 9.5, { fill: '#cfe0c2' });
+    var cx = BW / 2, cy = BH / 2 + 6;
+    if (!assetImage('logo', cx - 130, cy - 34, 260, 54, svg)) {
+      txt(svg, cx, cy, 'H O T E L S', 26,
+        { fill: '#f3edd9', 'font-weight': 'bold', 'letter-spacing': '3', filter: 'url(#fShadow)' });
+      txt(svg, cx, cy + 19, 'clay tycoon', 10, { fill: '#cfe0c2' });
     }
 
-    // track squares
-    G.TRACK.forEach(function (pos, i) {
-      var type = G.SPECIALS[i] || 'plain';
-      var scx = pos.x * C + C / 2, scy = pos.y * C + C / 2;
-      var g = el('g', { 'data-sq': i, cursor: 'pointer',
-        transform: 'rotate(' + wob(i) + ' ' + scx + ' ' + scy + ')' }, gSquares);
-      if (assetImage('square', pos.x * C + 1.5, pos.y * C + 1.5, C - 3, C - 3, g)) {
-        if (type !== 'plain') {
-          el('rect', { x: pos.x * C + 2.5, y: pos.y * C + 2.5, width: C - 5, height: C - 5, rx: 9,
-            fill: SQ_FILL[type], opacity: 0.4 }, g);
-        }
-      } else {
-        clayRect(g, pos.x * C + 2.5, pos.y * C + 2.5, C - 5, C - 5, SQ_FILL[type], 9);
-      }
-      if (type !== 'plain') {
-        drawIcon(g, type, scx, scy - 4);
-        txt(g, scx, pos.y * C + C - 7.5, SQ_LABEL[type], 5.6,
-          { fill: INK, 'font-weight': 'bold', 'letter-spacing': '0.4' });
-      } else if (G.SQUARE_PLOT[i] !== undefined) {
-        el('rect', { x: scx - 5, y: scy - 5, width: 10, height: 10, rx: 3,
-          fill: G.HOTELS[G.SQUARE_PLOT[i]].color, stroke: INK, 'stroke-width': 1.6 }, g);
-      }
-      g.addEventListener('click', function () { if (onSquare) onSquare(i); });
-    });
-
-    // plots
-    var PLOT_ASSET = { '3x2': 'plot-3x2', '2x3': 'plot-2x3', '4x2': 'plot-4x2', '2x4': 'plot-2x4' };
+    // plots (free-positioned rects, inside & outside the loop)
     G.PLOTS.forEach(function (pl, i) {
       var h = G.HOTELS[i];
-      var pcx = (pl.x + pl.w / 2) * C, pcy = (pl.y + pl.h / 2) * C;
-      var g = el('g', { 'data-plot': i, cursor: 'pointer',
-        transform: 'rotate(' + (wob(i + 11) * 0.6) + ' ' + pcx + ' ' + pcy + ')' }, gPlotsBase);
-      var ak = PLOT_ASSET[pl.w + 'x' + pl.h];
-      if (assetImage(ak, pl.x * C + 3, pl.y * C + 3, pl.w * C - 6, pl.h * C - 6, g)) {
-        el('rect', { x: pl.x * C + 3, y: pl.y * C + 3, width: pl.w * C - 6, height: pl.h * C - 6,
-          rx: 11, fill: h.color, opacity: 0.45 }, g);
+      var pcx = pl.x + pl.w / 2, pcy = pl.y + pl.h / 2;
+      var g = el('g', { 'data-plot': i, cursor: 'pointer' }, gPlotsBase);
+      var ak = 'plot-' + pl.w + 'x' + pl.h;
+      if (assetImage(ak, pl.x, pl.y, pl.w, pl.h, g)) {
+        el('rect', { x: pl.x, y: pl.y, width: pl.w, height: pl.h, rx: 13,
+          fill: h.color, opacity: 0.4 }, g);
       } else {
-        clayRect(g, pl.x * C + 3.5, pl.y * C + 3.5, pl.w * C - 7, pl.h * C - 7, h.color, 11, 2.4);
+        el('rect', { x: pl.x, y: pl.y, width: pl.w, height: pl.h, rx: 13,
+          fill: h.color, stroke: INK, 'stroke-width': 2.4 }, g);
+        el('rect', { x: pl.x + 4, y: pl.y + 3, width: pl.w - 8, height: 5, rx: 3,
+          fill: '#ffffff', opacity: 0.2 }, g);
       }
-      txt(g, pcx, pl.y * C + 16, h.name.toUpperCase(), 9,
+      txt(g, pcx, pl.y + 16, h.name.toUpperCase(), 10,
         { fill: '#2b2620', 'font-weight': 'bold', 'letter-spacing': '0.6' });
-      txt(g, pcx, pl.y * C + 26, '★'.repeat(h.stars), 8, { fill: '#6b5210' });
+      txt(g, pcx, pl.y + 28, '★'.repeat(h.stars), 9, { fill: '#6b5210' });
       g.addEventListener('click', function () { if (onPlot) onPlot(i); });
     });
 
-    // clay grain over the static art
-    el('rect', { x: 0, y: 0, width: G.GRID.w * C, height: G.GRID.h * C,
+    // track tiles (rotated to the road tangent; labels stay upright)
+    G.TRACK.forEach(function (pos, i) {
+      var type = G.SPECIALS[i] || 'plain';
+      var g = el('g', { 'data-sq': i, cursor: 'pointer',
+        transform: 'rotate(' + pos.a.toFixed(1) + ' ' + pos.x.toFixed(1) + ' ' + pos.y.toFixed(1) + ')'
+      }, gSquares);
+      if (assetImage('square', pos.x - C / 2, pos.y - C / 2, C, C, g)) {
+        if (type !== 'plain')
+          el('rect', { x: pos.x - C / 2 + 1, y: pos.y - C / 2 + 1, width: C - 2, height: C - 2,
+            rx: 8, fill: SQ_FILL[type], opacity: 0.4 }, g);
+      } else {
+        clayRectAt(g, pos.x, pos.y, C - 2, C - 2, SQ_FILL[type], 8);
+      }
+      g.addEventListener('click', function () { if (onSquare) onSquare(i); });
+
+      // upright overlay (icons/labels/markers)
+      var u = el('g', { 'data-sq': i, cursor: 'pointer' }, gSquares);
+      if (type !== 'plain') {
+        drawIcon(u, type, pos.x, pos.y - 3);
+        txt(u, pos.x, pos.y + C / 2 - 5, SQ_LABEL[type], 5.4,
+          { fill: INK, 'font-weight': 'bold', 'letter-spacing': '0.3' });
+      } else if (G.SHARED[i]) {
+        // contested square: split diamond showing both racing hotels
+        var o = G.SHARED[i], s = 6.5;
+        el('path', { d: 'M' + pos.x + ' ' + (pos.y - s) + ' L' + (pos.x + s) + ' ' + pos.y +
+          ' L' + pos.x + ' ' + (pos.y + s) + ' Z', fill: G.HOTELS[o[1]].color,
+          stroke: INK, 'stroke-width': 1.4 }, u);
+        el('path', { d: 'M' + pos.x + ' ' + (pos.y - s) + ' L' + (pos.x - s) + ' ' + pos.y +
+          ' L' + pos.x + ' ' + (pos.y + s) + ' Z', fill: G.HOTELS[o[0]].color,
+          stroke: INK, 'stroke-width': 1.4 }, u);
+        el('path', { d: 'M' + pos.x + ' ' + (pos.y - s) + ' L' + (pos.x + s) + ' ' + pos.y +
+          ' L' + pos.x + ' ' + (pos.y + s) + ' L' + (pos.x - s) + ' ' + pos.y + ' Z',
+          fill: 'none', stroke: INK, 'stroke-width': 1.4 }, u);
+      } else if (G.SQUARE_PLOT[i] !== undefined) {
+        el('rect', { x: pos.x - 4.5, y: pos.y - 4.5, width: 9, height: 9, rx: 2.5,
+          fill: G.HOTELS[G.SQUARE_PLOT[i]].color, stroke: INK, 'stroke-width': 1.5 }, u);
+      }
+      u.addEventListener('click', function () { if (onSquare) onSquare(i); });
+    });
+
+    // grain wash over static art
+    el('rect', { x: 0, y: 0, width: BW, height: BH,
       filter: 'url(#fGrain)', 'pointer-events': 'none' }, svg);
-    // dynamic layers live above the grain
     svg.appendChild(gPlotsDyn); svg.appendChild(gEntrances);
     svg.appendChild(gDanger); svg.appendChild(gHighlight); svg.appendChild(gTokens);
     return svg;
@@ -235,7 +280,7 @@
       fill: CREAM, stroke: INK, 'stroke-width': 1.8 }, g);
     el('rect', { x: x - 1.5, y: y, width: w + 3, height: 6.5, rx: 3,
       fill: roofColor, stroke: INK, 'stroke-width': 1.8 }, g);
-    for (var wy = y + 10; wy < y + h - 8; wy += 7) {
+    for (var wy = y + 10; wy < y + h - 7; wy += 7) {
       for (var wx = x + 3.5; wx < x + w - 5; wx += 6.5) {
         el('rect', { x: wx, y: wy, width: 3.6, height: 4, rx: 1.2, fill: '#7fb4d8',
           stroke: INK, 'stroke-width': 0.8 }, g);
@@ -266,46 +311,47 @@
       var geo = G.PLOTS[i], h = G.HOTELS[i];
       var g = el('g', { 'pointer-events': 'none' }, gPlotsDyn);
       if (pl.owner) {
-        el('rect', {
-          x: geo.x * C + 3.5, y: geo.y * C + 3.5, width: geo.w * C - 7, height: geo.h * C - 7,
-          fill: 'none', stroke: colorOf[pl.owner] || '#fff', 'stroke-width': 4, rx: 11
-        }, g);
-        el('circle', { cx: (geo.x + geo.w) * C - 13, cy: geo.y * C + 13, r: 5.5,
+        el('rect', { x: geo.x, y: geo.y, width: geo.w, height: geo.h,
+          fill: 'none', stroke: colorOf[pl.owner] || '#fff', 'stroke-width': 4, rx: 13 }, g);
+        el('circle', { cx: geo.x + geo.w - 12, cy: geo.y + 12, r: 5.5,
           fill: colorOf[pl.owner], stroke: INK, 'stroke-width': 1.8 }, g);
       }
       var pad = 9, slotW = 25;
-      var perRow = Math.max(1, Math.floor((geo.w * C - pad * 2) / slotW));
-      var bx0 = geo.x * C + pad + 2, by0 = geo.y * C + 31;
+      var perRow = Math.max(1, Math.floor((geo.w - pad * 2) / slotW));
+      var bx0 = geo.x + pad + 2, by0 = geo.y + 33;
       var n = pl.stages + (pl.facility ? 1 : 0);
       for (var s = 0; s < n; s++) {
         var row = Math.floor(s / perRow), col = s % perRow;
-        var x = bx0 + col * slotW, y = by0 + row * 35;
+        var x = bx0 + col * slotW, y = by0 + row * 33;
         if (s < pl.stages) {
           var isMain = s === 0;
-          building(g, x, y + (isMain ? 0 : 6), isMain ? 21 : 17, isMain ? 31 : 25,
+          building(g, x, y + (isMain ? 0 : 6), isMain ? 21 : 17, isMain ? 30 : 24,
             darken(h.color, 0.72), isMain);
         } else {
-          pool(g, x, y + 19);
+          pool(g, x, y + 18);
         }
       }
     });
   }
 
   var awnSeq = 0;
-  function awning(g, x, y, w, h, color) {
+  function awning(g, cx, cy, ang, color) {
+    var w = 24, h = 9;
     var key = 'awning-' + COLOR_KEY[color];
-    if (assetImage(key, x, y - 2, w, h + 6, g)) return;
+    var gg = el('g', { transform: 'rotate(' + ang.toFixed(1) + ' ' + cx.toFixed(1) + ' ' + cy.toFixed(1) + ')' }, g);
+    if (assetImage(key, cx - w / 2, cy - h / 2 - 1, w, h + 6, gg)) return;
+    var x = cx - w / 2, y = cy - h / 2;
     var stripes = 5, sw = w / stripes;
     var clipId = 'awn' + (awnSeq++);
-    var cp = el('clipPath', { id: clipId }, g);
+    var cp = el('clipPath', { id: clipId }, gg);
     el('rect', { x: x, y: y, width: w, height: h, rx: 3.5 }, cp);
-    var inner = el('g', { 'clip-path': 'url(#' + clipId + ')' }, g);
+    var inner = el('g', { 'clip-path': 'url(#' + clipId + ')' }, gg);
     for (var i = 0; i < stripes; i++) {
       el('rect', { x: x + i * sw, y: y, width: sw + 0.5, height: h,
         fill: i % 2 ? '#f6f1e2' : color }, inner);
     }
     el('rect', { x: x, y: y, width: w, height: h, rx: 3.5,
-      fill: 'none', stroke: INK, 'stroke-width': 1.8 }, g);
+      fill: 'none', stroke: INK, 'stroke-width': 1.8 }, gg);
   }
 
   function drawEntrances(view, players) {
@@ -315,30 +361,29 @@
     view.plots.forEach(function (pl, i) {
       if (!pl.entrances.length) return;
       var geo = G.PLOTS[i];
-      var pcx = (geo.x + geo.w / 2) * C, pcy = (geo.y + geo.h / 2) * C;
+      var pcx = geo.x + geo.w / 2, pcy = geo.y + geo.h / 2;
       pl.entrances.forEach(function (sq) {
         var pos = G.TRACK[sq];
-        var scx = pos.x * C + C / 2, scy = pos.y * C + C / 2;
-        var dx = pcx - scx, dy = pcy - scy;
-        var w = 26, h = 9;
-        var x = scx - w / 2, y = scy - h / 2;
-        if (Math.abs(dx) > Math.abs(dy)) x = dx > 0 ? pos.x * C + C - w + 5 : pos.x * C - 5;
-        else y = dy > 0 ? pos.y * C + C - h + 4 : pos.y * C - 4;
+        var dx = pcx - pos.x, dy = pcy - pos.y;
+        var len = Math.sqrt(dx * dx + dy * dy) || 1;
+        var off = C / 2 - 1;
+        var ex = pos.x + dx / len * off, ey = pos.y + dy / len * off;
+        var ang = Math.atan2(dy, dx) * 180 / Math.PI + 90;
         var g = el('g', { 'pointer-events': 'none', filter: 'url(#fShadow)' }, gEntrances);
-        awning(g, x, y, w, h, colorOf[pl.owner] || '#999');
+        awning(g, ex, ey, ang, colorOf[pl.owner] || '#999');
       });
     });
   }
 
   /* ---------- tokens with hop animation ---------- */
   function tokenOffset(idx) {
-    var offs = [[-11, -11], [11, -11], [-11, 9], [11, 9]];
+    var offs = [[-9, -9], [9, -9], [-9, 9], [9, 9]];
     return offs[idx % 4];
   }
   function tokenXY(pos, idx) {
     var p = G.TRACK[pos];
     var off = tokenOffset(idx);
-    return [p.x * C + C / 2 + off[0], p.y * C + C / 2 + off[1]];
+    return [p.x + off[0], p.y + off[1]];
   }
 
   function drawTokens(view) {
@@ -346,11 +391,11 @@
       var t = tokenEls[p.id];
       if (!t) {
         var g = el('g', { class: 'token' }, gTokens);
-        el('circle', { cx: 0, cy: 0, r: 17, fill: 'rgba(255,255,230,0.75)',
+        el('circle', { cx: 0, cy: 0, r: 15, fill: 'rgba(255,255,230,0.72)',
           stroke: INK, 'stroke-width': 1.8, class: 'token-ring' }, g);
         var url = window.ClayAssets && ClayAssets.url('car-' + COLOR_KEY[p.color]);
         var inner = el('g', { class: 'token-car' }, g);
-        if (url) el('image', { href: url, x: -17, y: -15, width: 34, height: 28 }, inner);
+        if (url) el('image', { href: url, x: -16, y: -14, width: 32, height: 26 }, inner);
         else drawCar(inner, p.color);
         t = tokenEls[p.id] = { g: g, pos: p.pos, timer: null };
         setTokenPos(t, p.pos, idx);
@@ -369,7 +414,7 @@
   function setTokenPos(t, pos, idx) {
     var xy = tokenXY(pos, idx);
     t.pos = pos;
-    t.g.style.transform = 'translate(' + xy[0] + 'px,' + xy[1] + 'px)';
+    t.g.style.transform = 'translate(' + xy[0].toFixed(1) + 'px,' + xy[1].toFixed(1) + 'px)';
   }
 
   function hopTo(t, target, idx) {
@@ -391,23 +436,28 @@
       }
       setTokenPos(t, path[step], idx);
       t.g.classList.remove('hopping');
-      void t.g.getBoundingClientRect(); // restart the hop animation
+      void t.g.getBoundingClientRect();
       t.g.classList.add('hopping');
       if (window.Sound && step % 2 === 0) Sound.play('hop');
       step++;
     }, 130);
   }
 
+  function ringAt(parent, sq, cls, stroke, sw) {
+    var pos = G.TRACK[sq];
+    el('rect', {
+      x: pos.x - C / 2 + 1, y: pos.y - C / 2 + 1, width: C - 2, height: C - 2,
+      rx: 9, fill: 'none', stroke: stroke, 'stroke-width': sw, class: cls,
+      transform: 'rotate(' + pos.a.toFixed(1) + ' ' + pos.x.toFixed(1) + ' ' + pos.y.toFixed(1) + ')',
+      'pointer-events': 'none'
+    }, parent);
+  }
+
   function setDanger(list) {
     if (!gDanger) return;
     gDanger.innerHTML = '';
     (list || []).forEach(function (d) {
-      var pos = G.TRACK[d.sq];
-      el('rect', {
-        x: pos.x * C + 1.5, y: pos.y * C + 1.5, width: C - 3, height: C - 3,
-        fill: 'none', stroke: '#e8463c', rx: 10,
-        class: 'danger danger-' + d.tier, 'pointer-events': 'none'
-      }, gDanger);
+      ringAt(gDanger, d.sq, 'danger danger-' + d.tier, '#e8463c', 3.5);
     });
   }
 
@@ -416,12 +466,7 @@
     if (!gHighlight) return;
     gHighlight.innerHTML = '';
     selectable.forEach(function (sq) {
-      var pos = G.TRACK[sq];
-      el('rect', {
-        x: pos.x * C + 2.5, y: pos.y * C + 2.5, width: C - 5, height: C - 5,
-        fill: 'none', stroke: '#ffe14a', 'stroke-width': 4.5, rx: 10, class: 'pulse',
-        'pointer-events': 'none'
-      }, gHighlight);
+      ringAt(gHighlight, sq, 'pulse', '#ffe14a', 4.5);
     });
   }
 

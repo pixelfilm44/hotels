@@ -45,67 +45,141 @@
       entrance: 1200, rates: [600, 900, 1200, 1600, 2100] }
   ];
 
-  /* Track: ring of 42 squares on a 13x10 cell grid, clockwise from top-left. */
-  var TRACK = [];
-  var x, y;
-  for (x = 0; x <= 12; x++) TRACK.push({ x: x, y: 0 });   // 0..12  top
-  for (y = 1; y <= 8; y++)  TRACK.push({ x: 12, y: y });  // 13..20 right
-  for (x = 12; x >= 0; x--) TRACK.push({ x: x, y: 9 });   // 21..33 bottom
-  for (y = 8; y >= 1; y--)  TRACK.push({ x: 0, y: y });   // 34..41 left
+  /* ---------- curved board geometry ----------
+     The track is a winding closed loop sampled from a Catmull-Rom spline.
+     Hotels sit inside AND outside the road; square<->plot adjacency is
+     computed by distance, so one square can serve two facing hotels —
+     and only ONE entrance fits on a square (the entrance race). */
+  var BOARD = { w: 780, h: 560 };
+  var N_SQUARES = 42;
+
+  var CTRL = [
+    { x: 140, y: 120 }, { x: 235, y: 80 },  { x: 340, y: 90 },  { x: 425, y: 152 },
+    { x: 505, y: 92 },  { x: 610, y: 95 },  { x: 680, y: 165 }, { x: 685, y: 255 },
+    { x: 635, y: 320 }, { x: 655, y: 390 }, { x: 575, y: 445 }, { x: 445, y: 450 },
+    { x: 300, y: 443 }, { x: 160, y: 435 }, { x: 85, y: 370 },  { x: 68, y: 262 },
+    { x: 82, y: 165 }
+  ];
+
+  function sampleLoop(pts, n) {
+    var dense = [];
+    var SEG = 40;
+    var i, j;
+    for (i = 0; i < pts.length; i++) {
+      var p0 = pts[(i - 1 + pts.length) % pts.length];
+      var p1 = pts[i];
+      var p2 = pts[(i + 1) % pts.length];
+      var p3 = pts[(i + 2) % pts.length];
+      for (j = 0; j < SEG; j++) {
+        var t = j / SEG, t2 = t * t, t3 = t2 * t;
+        dense.push({
+          x: 0.5 * ((2 * p1.x) + (-p0.x + p2.x) * t +
+            (2 * p0.x - 5 * p1.x + 4 * p2.x - p3.x) * t2 +
+            (-p0.x + 3 * p1.x - 3 * p2.x + p3.x) * t3),
+          y: 0.5 * ((2 * p1.y) + (-p0.y + p2.y) * t +
+            (2 * p0.y - 5 * p1.y + 4 * p2.y - p3.y) * t2 +
+            (-p0.y + 3 * p1.y - 3 * p2.y + p3.y) * t3)
+        });
+      }
+    }
+    var lens = [0];
+    var total = 0;
+    for (i = 1; i <= dense.length; i++) {
+      var a = dense[i - 1], b = dense[i % dense.length];
+      total += Math.sqrt((b.x - a.x) * (b.x - a.x) + (b.y - a.y) * (b.y - a.y));
+      lens.push(total);
+    }
+    var out = [];
+    var di = 0;
+    for (i = 0; i < n; i++) {
+      var target = total * i / n;
+      while (lens[di + 1] < target) di++;
+      var f = (target - lens[di]) / (lens[di + 1] - lens[di] || 1);
+      var pa = dense[di % dense.length], pb = dense[(di + 1) % dense.length];
+      var px = pa.x + (pb.x - pa.x) * f, py = pa.y + (pb.y - pa.y) * f;
+      var pn = dense[(di + 3) % dense.length];
+      out.push({ x: px, y: py, a: Math.atan2(pn.y - py, pn.x - px) * 180 / Math.PI });
+    }
+    out.step = total / n;
+    return out;
+  }
+
+  var TRACK = sampleLoop(CTRL, N_SQUARES);
+  var CELL = Math.round(TRACK.step * 0.84);    // square size in px
+  var GRID = BOARD;                            // legacy alias
 
   /* Special squares (all other squares are plain road / buying / entrance squares) */
   var SPECIALS = {
-    0:  'start',          // Car Park — everyone starts here
-    12: 'bank',           // collect 2000 when passing (3+ players)
-    13: 'permission',
-    16: 'permission',
-    17: 'free-entrance',
-    21: 'cityhall',       // passing: may buy one entrance per built hotel
-    22: 'free-entrance',
-    30: 'free-build',
-    32: 'permission',
-    33: 'permission',
-    34: 'free-build',
-    35: 'permission'
+    0: 'start', 5: 'permission', 11: 'bank', 16: 'permission',
+    18: 'free-entrance', 21: 'cityhall', 24: 'permission', 27: 'free-build',
+    31: 'permission', 33: 'free-entrance', 36: 'permission', 39: 'free-build'
   };
   SPECIALS[41] = 'permission';
 
-  /* Plot rectangles on the cell grid (for rendering) */
+  /* Hotel plots in board pixels — inside and outside the road. */
   var PLOTS = [
-    { x: 1,  y: 1, w: 3, h: 2 },  // Surf Shack
-    { x: 4,  y: 1, w: 3, h: 2 },  // Cactus Court
-    { x: 7,  y: 1, w: 3, h: 2 },  // Lagoon Palms
-    { x: 10, y: 1, w: 2, h: 3 },  // Alpine Lodge
-    { x: 10, y: 6, w: 2, h: 3 },  // Casa Sol
-    { x: 6,  y: 7, w: 4, h: 2 },  // Pagoda Garden
-    { x: 2,  y: 7, w: 4, h: 2 },  // Sky Mirage
-    { x: 1,  y: 3, w: 2, h: 4 }   // The Meridian
+    { x: 40,  y: 6,   w: 235, h: 64 },   // Surf Shack      (outside, top-left beach)
+    { x: 145, y: 118, w: 150, h: 84 },   // Cactus Court    (inside, faces Surf Shack)
+    { x: 365, y: 14,  w: 150, h: 85 },   // Lagoon Palms    (outside, above the dip)
+    { x: 495, y: 135, w: 150, h: 88 },   // Alpine Lodge    (inside, top-right lobe)
+    { x: 470, y: 325, w: 135, h: 82 },   // Casa Sol        (inside, bottom-right)
+    { x: 430, y: 462, w: 160, h: 84 },   // Pagoda Garden   (outside, faces Casa Sol)
+    { x: 150, y: 455, w: 175, h: 85 },   // Sky Mirage      (outside, bottom-left)
+    { x: 115, y: 285, w: 200, h: 115 }   // The Meridian    (inside island, faces Sky Mirage)
   ];
 
-  /* Track squares adjacent to each plot: these are its buying squares and
-     the only squares where its entrances may be placed. */
-  var PLOT_SQUARES = [
-    [1, 2, 3, 40],      // Surf Shack
-    [4, 5, 6],          // Cactus Court
-    [7, 8, 9],          // Lagoon Palms
-    [10, 11, 14, 15],   // Alpine Lodge
-    [18, 19, 20, 23],   // Casa Sol
-    [24, 25, 26, 27],   // Pagoda Garden
-    [28, 29, 31],       // Sky Mirage
-    [36, 37, 38, 39]    // The Meridian
-  ];
-
+  /* Adjacency by distance: a plain square within reach of a plot can host its
+     entrance. Shared squares (two facing plots) hold only ONE entrance ever. */
+  var ADJ_DIST = 46;
+  var PLOT_SQUARES = PLOTS.map(function () { return []; });
   var SQUARE_PLOT = {};
-  PLOT_SQUARES.forEach(function (squares, plotId) {
-    squares.forEach(function (sq) { SQUARE_PLOT[sq] = plotId; });
+  TRACK.forEach(function (sq, i) {
+    if (SPECIALS[i]) return;
+    var best = null, bestD = 1e9;
+    PLOTS.forEach(function (pl, pi) {
+      var dx = Math.max(pl.x - sq.x, 0, sq.x - (pl.x + pl.w));
+      var dy = Math.max(pl.y - sq.y, 0, sq.y - (pl.y + pl.h));
+      var d = Math.sqrt(dx * dx + dy * dy);
+      if (d <= ADJ_DIST) {
+        PLOT_SQUARES[pi].push(i);
+        if (d < bestD) { bestD = d; best = pi; }
+      }
+    });
+    if (best !== null) SQUARE_PLOT[i] = best;   // nearest plot is the buying side
+  });
+
+  // re-balance: every hotel keeps at least 2 buying squares
+  PLOTS.forEach(function (pl, pi) {
+    function mine() {
+      return Object.keys(SQUARE_PLOT).filter(function (k) { return SQUARE_PLOT[k] === pi; });
+    }
+    PLOT_SQUARES[pi].forEach(function (sq) {
+      if (mine().length >= 2) return;
+      var owner = SQUARE_PLOT[sq];
+      if (owner === pi) return;
+      var ownerCount = Object.keys(SQUARE_PLOT).filter(function (k) {
+        return SQUARE_PLOT[k] === owner;
+      }).length;
+      if (ownerCount > 2) SQUARE_PLOT[sq] = pi;
+    });
+  });
+
+  /* Contested squares: a plain square reachable by 2+ plots. Only one entrance
+     ever fits, so facing hotels race to claim it. SHARED[sq] = [plotIds]. */
+  var SHARED = {};
+  TRACK.forEach(function (sq, i) {
+    var owners = [];
+    PLOT_SQUARES.forEach(function (sqs, pi) { if (sqs.indexOf(i) >= 0) owners.push(pi); });
+    if (owners.length > 1) SHARED[i] = owners;
   });
 
   function fmt(n) { return '$' + (n || 0).toLocaleString('en-US'); }
 
   return {
     START_CASH: START_CASH, BANK_BONUS: BANK_BONUS, AUCTION_MS: AUCTION_MS,
-    CELL: CELL, GRID: GRID, COLORS: COLORS, COLOR_NAMES: COLOR_NAMES,
+    CELL: CELL, GRID: GRID, BOARD: BOARD, CTRL: CTRL, COLORS: COLORS, COLOR_NAMES: COLOR_NAMES,
     STAGE_NAMES: STAGE_NAMES, HOTELS: HOTELS, TRACK: TRACK, SPECIALS: SPECIALS,
-    PLOTS: PLOTS, PLOT_SQUARES: PLOT_SQUARES, SQUARE_PLOT: SQUARE_PLOT, fmt: fmt
+    PLOTS: PLOTS, PLOT_SQUARES: PLOT_SQUARES, SQUARE_PLOT: SQUARE_PLOT,
+    SHARED: SHARED, fmt: fmt
   };
 });
