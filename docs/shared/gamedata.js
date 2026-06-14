@@ -152,7 +152,7 @@
     { x: 250,  y: 160, w: 268, h: 185 },  // Waikiri
     { x: 445,  y: 120, w: 240, h: 205 },  // Hábel
     { x: 1180, y: 40,  w: 345, h: 200 },  // L'Étoile
-    { x: 150,  y: 415, w: 305, h: 210 },  // Royal
+    { x: 150,  y: 415, w: 305, h: 280 },  // Royal (extended down to share squares with President)
     { x: 1010, y: 560, w: 425, h: 245 },  // Fujiyama
     { x: 1150, y: 820, w: 390, h: 245 },  // Boomerang
     { x: 55,   y: 775, w: 365, h: 250 },  // President
