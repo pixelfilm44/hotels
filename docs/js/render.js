@@ -64,24 +64,42 @@
 
   /* Grid of building slots (top-left corners) whose footprint sits inside the
      zone polygon; falls back to a bbox grid if the polygon is too small. */
-  function buildSlots(poly, bbox, bw, bh, sx, sy) {
-    var slots = [];
-    if (poly) {
-      for (var yy = bbox.y + 4; yy + bh <= bbox.y + bbox.h - 2 && slots.length < 60; yy += sy) {
-        for (var xx = bbox.x + 4; xx + bw <= bbox.x + bbox.w - 2; xx += sx) {
-          var cx = xx + bw / 2;
-          if (pointInPoly(cx, yy + bh * 0.45, poly) && pointInPoly(cx, yy + bh - 3, poly) &&
-              pointInPoly(xx + 3, yy + bh - 3, poly) && pointInPoly(xx + bw - 3, yy + bh - 3, poly))
-            slots.push({ x: xx, y: yy });
+  /* Place each building item {w,h} at the first position that lies inside the
+     zone polygon and does not overlap any already-placed building (GAP pixels
+     clearance). Falls back to the last placed position if no room is found. */
+  function placeBuildings(poly, bbox, items) {
+    var placed = [];
+    var STEP = 8, GAP = 8;
+    for (var bi = 0; bi < items.length; bi++) {
+      var bw = items[bi].w, bh = items[bi].h;
+      var found = null;
+      scan:
+      for (var yy = bbox.y + 4; yy + bh <= bbox.y + bbox.h - 2; yy += STEP) {
+        for (var xx = bbox.x + 4; xx + bw <= bbox.x + bbox.w - 2; xx += STEP) {
+          if (poly) {
+            var cx = xx + bw / 2;
+            if (!pointInPoly(cx,      yy + bh / 2,  poly)) continue;
+            if (!pointInPoly(cx,      yy + bh - 2,  poly)) continue;
+            if (!pointInPoly(xx + 2,  yy + bh - 2,  poly)) continue;
+            if (!pointInPoly(xx + bw - 2, yy + bh - 2, poly)) continue;
+            if (!pointInPoly(xx + 2,  yy + 2,       poly)) continue;
+            if (!pointInPoly(xx + bw - 2, yy + 2,   poly)) continue;
+          }
+          var ok = true;
+          for (var pi = 0; pi < placed.length; pi++) {
+            var p = placed[pi];
+            if (xx < p.x + p.w + GAP && xx + bw + GAP > p.x &&
+                yy < p.y + p.h + GAP && yy + bh + GAP > p.y) { ok = false; break; }
+          }
+          if (ok) { found = { x: xx, y: yy }; break scan; }
         }
       }
+      var pos = found || (placed.length
+        ? { x: placed[placed.length - 1].x, y: placed[placed.length - 1].y }
+        : { x: bbox.x + 4, y: bbox.y + 4 });
+      placed.push({ x: pos.x, y: pos.y, w: bw, h: bh });
     }
-    if (!slots.length) {
-      var perRow = Math.max(1, Math.floor((bbox.w - 16) / sx));
-      for (var k = 0; k < 40; k++)
-        slots.push({ x: bbox.x + 8 + (k % perRow) * sx, y: bbox.y + bbox.h * 0.3 + Math.floor(k / perRow) * sy });
-    }
-    return slots;
+    return placed;
   }
 
   /* smooth closed Catmull-Rom path through points */
@@ -442,12 +460,11 @@
             fill: oc, stroke: INK, 'stroke-width': 2.2 }, g);
         }
       }
-      // buildings sit inside the zone: use polygon-constrained slots on the
-      // image board, or the plot box grid on the vector board
+      // buildings sit inside the zone: polygon-constrained on the image board,
+      // bbox grid on the vector board; each building gets its own non-overlapping slot
       var n = pl.stages + (pl.facility ? 1 : 0);
-      var BW2 = 85, BH2 = 122, SX = 92, SY = 132;
       var usePoly = hasBoardImg && G.POLYS && G.POLYS[i];
-      var bbox = geo;
+      var bbox;
       if (usePoly) {
         var xs = G.POLYS[i].map(function (p) { return p[0]; });
         var ys = G.POLYS[i].map(function (p) { return p[1]; });
@@ -457,15 +474,17 @@
       } else {
         bbox = { x: geo.x + 12, y: geo.y + 40, w: geo.w - 24, h: geo.h - 48 };
       }
-      var slots = buildSlots(usePoly ? G.POLYS[i] : null, bbox, BW2, BH2, SX, SY);
+      var items = [];
+      for (var si = 0; si < n; si++)
+        items.push(si < pl.stages ? (si === 0 ? { w: 82, h: 120 } : { w: 62, h: 88 }) : { w: 64, h: 48 });
+      var positions = placeBuildings(usePoly ? G.POLYS[i] : null, bbox, items);
       for (var s = 0; s < n; s++) {
-        var slot = slots[s] || slots[slots.length - 1];
+        var pos = positions[s];
         if (s < pl.stages) {
           var isMain = s === 0;
-          building(g, slot.x + (isMain ? 0 : 6), slot.y + (isMain ? 0 : 20),
-            isMain ? 82 : 62, isMain ? 120 : 88, darken(h.color, 0.72), isMain, i);
+          building(g, pos.x, pos.y, isMain ? 82 : 62, isMain ? 120 : 88, darken(h.color, 0.72), isMain, i);
         } else {
-          pool(g, slot.x, slot.y + 48, i);
+          pool(g, pos.x, pos.y, i);
         }
       }
     });
