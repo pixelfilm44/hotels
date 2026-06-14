@@ -53,6 +53,37 @@
       preserveAspectRatio: 'xMidYMid meet' }, parent);
   }
 
+  function pointInPoly(x, y, poly) {
+    var inside = false;
+    for (var a = 0, b = poly.length - 1; a < poly.length; b = a++) {
+      var xi = poly[a][0], yi = poly[a][1], xj = poly[b][0], yj = poly[b][1];
+      if (((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi)) inside = !inside;
+    }
+    return inside;
+  }
+
+  /* Grid of building slots (top-left corners) whose footprint sits inside the
+     zone polygon; falls back to a bbox grid if the polygon is too small. */
+  function buildSlots(poly, bbox, bw, bh, sx, sy) {
+    var slots = [];
+    if (poly) {
+      for (var yy = bbox.y + 4; yy + bh <= bbox.y + bbox.h - 2 && slots.length < 60; yy += sy) {
+        for (var xx = bbox.x + 4; xx + bw <= bbox.x + bbox.w - 2; xx += sx) {
+          var cx = xx + bw / 2;
+          if (pointInPoly(cx, yy + bh * 0.45, poly) && pointInPoly(cx, yy + bh - 3, poly) &&
+              pointInPoly(xx + 3, yy + bh - 3, poly) && pointInPoly(xx + bw - 3, yy + bh - 3, poly))
+            slots.push({ x: xx, y: yy });
+        }
+      }
+    }
+    if (!slots.length) {
+      var perRow = Math.max(1, Math.floor((bbox.w - 16) / sx));
+      for (var k = 0; k < 40; k++)
+        slots.push({ x: bbox.x + 8 + (k % perRow) * sx, y: bbox.y + bbox.h * 0.3 + Math.floor(k / perRow) * sy });
+    }
+    return slots;
+  }
+
   /* smooth closed Catmull-Rom path through points */
   function loopPath(pts) {
     var n = pts.length;
@@ -384,28 +415,30 @@
             fill: oc, stroke: INK, 'stroke-width': 2.2 }, g);
         }
       }
-      // buildings render on the painted region (polygon bbox) when available
-      var area = geo;
-      if (hasBoardImg && G.POLYS && G.POLYS[i]) {
+      // buildings sit inside the zone: use polygon-constrained slots on the
+      // image board, or the plot box grid on the vector board
+      var n = pl.stages + (pl.facility ? 1 : 0);
+      var BW2 = 36, BH2 = 50, SX = 42, SY = 54;
+      var usePoly = hasBoardImg && G.POLYS && G.POLYS[i];
+      var bbox = geo;
+      if (usePoly) {
         var xs = G.POLYS[i].map(function (p) { return p[0]; });
         var ys = G.POLYS[i].map(function (p) { return p[1]; });
         var minx = Math.min.apply(null, xs), maxx = Math.max.apply(null, xs);
         var miny = Math.min.apply(null, ys), maxy = Math.max.apply(null, ys);
-        area = { x: minx, y: miny, w: maxx - minx, h: maxy - miny };
+        bbox = { x: minx, y: miny, w: maxx - minx, h: maxy - miny };
+      } else {
+        bbox = { x: geo.x + 12, y: geo.y + 40, w: geo.w - 24, h: geo.h - 48 };
       }
-      var pad = 14, slotW = 42;
-      var perRow = Math.max(1, Math.floor((area.w - pad * 2) / slotW));
-      var bx0 = area.x + pad + 2, by0 = area.y + 46;
-      var n = pl.stages + (pl.facility ? 1 : 0);
+      var slots = buildSlots(usePoly ? G.POLYS[i] : null, bbox, BW2, BH2, SX, SY);
       for (var s = 0; s < n; s++) {
-        var row = Math.floor(s / perRow), col = s % perRow;
-        var x = bx0 + col * slotW, y = by0 + row * 56;
+        var slot = slots[s] || slots[slots.length - 1];
         if (s < pl.stages) {
           var isMain = s === 0;
-          building(g, x, y + (isMain ? 0 : 10), isMain ? 34 : 28, isMain ? 50 : 40,
-            darken(h.color, 0.72), isMain);
+          building(g, slot.x + (isMain ? 0 : 3), slot.y + (isMain ? 0 : 10),
+            isMain ? 34 : 28, isMain ? 50 : 40, darken(h.color, 0.72), isMain);
         } else {
-          pool(g, x, y + 30);
+          pool(g, slot.x, slot.y + 24);
         }
       }
     });
