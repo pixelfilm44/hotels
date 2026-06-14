@@ -398,14 +398,14 @@
 
   function pool(g, x, y, plotId) {
     // tries facility-<hotel>, then facility, then pool, then vector
-    if (tryAsset(plotId, 'facility', x, y, 32, 24, g)) return;
-    if (assetImage('pool', x, y, 32, 24, g)) return;
-    el('rect', { x: x, y: y, width: 32, height: 24, rx: 8,
-      fill: '#54c4e4', stroke: INK, 'stroke-width': 2.2 }, g);
-    el('path', { d: 'M' + (x + 5) + ' ' + (y + 9) + ' q 3.5 -3 7 0 q 3.5 3 7 0',
-      fill: 'none', stroke: '#d9f4fc', 'stroke-width': 2, 'stroke-linecap': 'round' }, g);
-    el('path', { d: 'M' + (x + 10) + ' ' + (y + 16) + ' q 3.5 -3 7 0 q 3.5 3 7 0',
-      fill: 'none', stroke: '#d9f4fc', 'stroke-width': 2, 'stroke-linecap': 'round' }, g);
+    if (tryAsset(plotId, 'facility', x, y, 64, 48, g)) return;
+    if (assetImage('pool', x, y, 64, 48, g)) return;
+    el('rect', { x: x, y: y, width: 64, height: 48, rx: 16,
+      fill: '#54c4e4', stroke: INK, 'stroke-width': 2.4 }, g);
+    el('path', { d: 'M' + (x + 10) + ' ' + (y + 18) + ' q 7 -6 14 0 q 7 6 14 0',
+      fill: 'none', stroke: '#d9f4fc', 'stroke-width': 2.6, 'stroke-linecap': 'round' }, g);
+    el('path', { d: 'M' + (x + 20) + ' ' + (y + 32) + ' q 7 -6 14 0 q 7 6 14 0',
+      fill: 'none', stroke: '#d9f4fc', 'stroke-width': 2.6, 'stroke-linecap': 'round' }, g);
   }
 
   function drawPlotDynamics(view, players) {
@@ -439,7 +439,7 @@
       // buildings sit inside the zone: use polygon-constrained slots on the
       // image board, or the plot box grid on the vector board
       var n = pl.stages + (pl.facility ? 1 : 0);
-      var BW2 = 36, BH2 = 50, SX = 42, SY = 54;
+      var BW2 = 70, BH2 = 100, SX = 80, SY = 108;
       var usePoly = hasBoardImg && G.POLYS && G.POLYS[i];
       var bbox = geo;
       if (usePoly) {
@@ -456,10 +456,10 @@
         var slot = slots[s] || slots[slots.length - 1];
         if (s < pl.stages) {
           var isMain = s === 0;
-          building(g, slot.x + (isMain ? 0 : 3), slot.y + (isMain ? 0 : 10),
-            isMain ? 34 : 28, isMain ? 50 : 40, darken(h.color, 0.72), isMain, i);
+          building(g, slot.x + (isMain ? 0 : 6), slot.y + (isMain ? 0 : 20),
+            isMain ? 68 : 56, isMain ? 100 : 80, darken(h.color, 0.72), isMain, i);
         } else {
-          pool(g, slot.x, slot.y + 24, i);
+          pool(g, slot.x, slot.y + 48, i);
         }
       }
     });
