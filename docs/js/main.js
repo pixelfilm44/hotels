@@ -469,10 +469,11 @@
           'Buy ' + h1.name + (pd.compulsory ? ' from ' + playerById(pd.toOwner).name : '') +
           ' for ' + fmt(pd.price) + '?', box);
         el('div', 'prompt-sub', '★'.repeat(h1.stars) + '  ·  top rate ' +
-          fmt(h1.rates[h1.rates.length - 1]) + '/night — tap the plot for the full deed', box);
+          fmt(h1.rates[h1.rates.length - 1]) + '/night', box);
         var row1 = el('div', 'btn-row', null, box);
         btn('Buy', 'primary', function () { sendAction({ t: 'buy', yes: true }); }, row1);
         btn('Pass', '', function () { sendAction({ t: 'buy', yes: false }); }, row1);
+        btn('ℹ️ View details', 'small', function () { showDeed(pd.plotId); }, row1);
         break;
       }
       case 'choose-build': {
