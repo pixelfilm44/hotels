@@ -13,6 +13,7 @@
   var svg, gSquares, gPlotsDyn, gEntrances, gDanger, gHighlight, gTokens;
   var hasBoardImg = false;
   var tokenEls = {};   // pid -> {g, pos, timer}
+  var tintFilterCache = {};
   var onSquare = null, onPlot = null;
   var selectable = [];
 
@@ -46,11 +47,27 @@
     return 'rgb(' + r + ',' + g + ',' + b + ')';
   }
 
-  function assetImage(key, x, y, w, h, parent) {
+  function tintFilter(color) {
+    if (!color || !svg) return null;
+    if (tintFilterCache[color]) return tintFilterCache[color];
+    var id = 'fTint' + Object.keys(tintFilterCache).length;
+    var defs = svg.querySelector('defs');
+    var f = el('filter', { id: id, 'color-interpolation-filters': 'sRGB' }, defs);
+    el('feColorMatrix', { type: 'saturate', values: '0.2', result: 'g' }, f);
+    el('feFlood', { 'flood-color': color, 'flood-opacity': '0.5', result: 'c' }, f);
+    el('feComposite', { in: 'c', in2: 'SourceAlpha', operator: 'in', result: 'cm' }, f);
+    el('feBlend', { in: 'cm', in2: 'g', mode: 'multiply' }, f);
+    tintFilterCache[color] = 'url(#' + id + ')';
+    return tintFilterCache[color];
+  }
+
+  function assetImage(key, x, y, w, h, parent, filter) {
     var url = window.ClayAssets && ClayAssets.url(key);
     if (!url) return null;
-    return el('image', { href: url, x: x, y: y, width: w, height: h,
+    var img = el('image', { href: url, x: x, y: y, width: w, height: h,
       preserveAspectRatio: 'xMidYMid meet' }, parent);
+    if (filter) img.setAttribute('filter', filter);
+    return img;
   }
 
   function pointInPoly(x, y, poly) {
@@ -368,18 +385,18 @@
   function hotelSlug(plotId) { return slug(G.HOTELS[plotId].name); }
 
   // Try per-hotel asset first, then generic, then null (caller draws vector)
-  function tryAsset(plotId, kind, x, y, w, h, parent) {
+  function tryAsset(plotId, kind, x, y, w, h, parent, filter) {
     if (plotId != null) {
       var k = kind + '-' + hotelSlug(plotId);
-      var img = assetImage(k, x, y, w, h, parent);
+      var img = assetImage(k, x, y, w, h, parent, filter);
       if (img) return img;
     }
-    return assetImage(kind, x, y, w, h, parent);
+    return assetImage(kind, x, y, w, h, parent, filter);
   }
 
-  function building(g, x, y, w, h, roofColor, isMain, plotId) {
+  function building(g, x, y, w, h, roofColor, isMain, plotId, ownerColor) {
     var k = isMain ? 'building-main' : 'building-wing';
-    if (tryAsset(plotId, k, x - 2, y - 2, w + 4, h + 4, g)) return;
+    if (tryAsset(plotId, k, x - 2, y - 2, w + 4, h + 4, g, tintFilter(ownerColor))) return;
     el('rect', { x: x, y: y + 3, width: w, height: h - 3, rx: 3,
       fill: CREAM, stroke: INK, 'stroke-width': 1.8 }, g);
     el('rect', { x: x - 1.5, y: y, width: w + 3, height: 6.5, rx: 3,
@@ -396,10 +413,11 @@
     }
   }
 
-  function pool(g, x, y, plotId) {
+  function pool(g, x, y, plotId, ownerColor) {
+    var tint = tintFilter(ownerColor);
     // tries facility-<hotel>, then facility, then pool, then vector
-    if (tryAsset(plotId, 'facility', x, y, 64, 48, g)) return;
-    if (assetImage('pool', x, y, 64, 48, g)) return;
+    if (tryAsset(plotId, 'facility', x, y, 64, 48, g, tint)) return;
+    if (assetImage('pool', x, y, 64, 48, g, tint)) return;
     el('rect', { x: x, y: y, width: 64, height: 48, rx: 16,
       fill: '#54c4e4', stroke: INK, 'stroke-width': 2.4 }, g);
     el('path', { d: 'M' + (x + 10) + ' ' + (y + 18) + ' q 7 -6 14 0 q 7 6 14 0',
@@ -438,8 +456,9 @@
       }
       // buildings sit inside the zone: use polygon-constrained slots on the
       // image board, or the plot box grid on the vector board
+      var ownerColor = pl.owner ? colorOf[pl.owner] : null;
       var n = pl.stages + (pl.facility ? 1 : 0);
-      var BW2 = 70, BH2 = 100, SX = 80, SY = 108;
+      var BW2 = 85, BH2 = 122, SX = 92, SY = 132;
       var usePoly = hasBoardImg && G.POLYS && G.POLYS[i];
       var bbox = geo;
       if (usePoly) {
@@ -457,9 +476,9 @@
         if (s < pl.stages) {
           var isMain = s === 0;
           building(g, slot.x + (isMain ? 0 : 6), slot.y + (isMain ? 0 : 20),
-            isMain ? 68 : 56, isMain ? 100 : 80, darken(h.color, 0.72), isMain, i);
+            isMain ? 82 : 62, isMain ? 120 : 88, darken(h.color, 0.72), isMain, i, ownerColor);
         } else {
-          pool(g, slot.x, slot.y + 48, i);
+          pool(g, slot.x, slot.y + 48, i, ownerColor);
         }
       }
     });
