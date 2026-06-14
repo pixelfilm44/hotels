@@ -188,6 +188,9 @@
     el('feDisplacementMap', { in: 'SourceGraphic', in2: 'n', scale: 2.4 }, wf);
     var soft = el('filter', { id: 'fSoft', x: '-30%', y: '-30%', width: '160%', height: '160%' }, defs);
     el('feGaussianBlur', { stdDeviation: 11 }, soft);
+    var bs = el('filter', { id: 'fBldShadow', x: '-40%', y: '-40%', width: '200%', height: '200%' }, defs);
+    el('feDropShadow', { dx: 4, dy: 8, stdDeviation: 7,
+      'flood-color': '#0a0f0a', 'flood-opacity': 0.75 }, bs);
     var gr = el('filter', { id: 'fGrain' }, defs);
     el('feTurbulence', { type: 'fractalNoise', baseFrequency: 0.8, numOctaves: 2, seed: 4 }, gr);
     el('feColorMatrix', { type: 'matrix',
@@ -379,7 +382,8 @@
 
   function building(g, x, y, w, h, roofColor, isMain, plotId) {
     var k = isMain ? 'building-main' : 'building-wing';
-    if (tryAsset(plotId, k, x - 2, y - 2, w + 4, h + 4, g)) return;
+    var img = tryAsset(plotId, k, x - 2, y - 2, w + 4, h + 4, g);
+    if (img) { img.setAttribute('filter', 'url(#fBldShadow)'); return; }
     el('rect', { x: x, y: y + 3, width: w, height: h - 3, rx: 3,
       fill: CREAM, stroke: INK, 'stroke-width': 1.8 }, g);
     el('rect', { x: x - 1.5, y: y, width: w + 3, height: 6.5, rx: 3,
@@ -398,8 +402,10 @@
 
   function pool(g, x, y, plotId) {
     // tries facility-<hotel>, then facility, then pool, then vector
-    if (tryAsset(plotId, 'facility', x, y, 64, 48, g)) return;
-    if (assetImage('pool', x, y, 64, 48, g)) return;
+    var img = tryAsset(plotId, 'facility', x, y, 64, 48, g);
+    if (img) { img.setAttribute('filter', 'url(#fBldShadow)'); return; }
+    img = assetImage('pool', x, y, 64, 48, g);
+    if (img) { img.setAttribute('filter', 'url(#fBldShadow)'); return; }
     el('rect', { x: x, y: y, width: 64, height: 48, rx: 16,
       fill: '#54c4e4', stroke: INK, 'stroke-width': 2.4 }, g);
     el('path', { d: 'M' + (x + 10) + ' ' + (y + 18) + ' q 7 -6 14 0 q 7 6 14 0',
