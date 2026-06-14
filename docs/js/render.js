@@ -359,8 +359,27 @@
   window.addEventListener('hotels-calib', drawCalib);
 
   /* ---------- dynamic: buildings, owners, entrances ---------- */
-  function building(g, x, y, w, h, roofColor, isMain) {
-    if (assetImage(isMain ? 'building-main' : 'building-wing', x - 2, y - 2, w + 4, h + 4, g)) return;
+  // hotel abbr -> kebab slug used in asset keys (e.g. "Hábel" -> "habel")
+  function slug(s) {
+    return s.toLowerCase()
+      .normalize('NFD').replace(/[̀-ͯ]/g, '')
+      .replace(/[^a-z0-9]+/g, '');
+  }
+  function hotelSlug(plotId) { return slug(G.HOTELS[plotId].name); }
+
+  // Try per-hotel asset first, then generic, then null (caller draws vector)
+  function tryAsset(plotId, kind, x, y, w, h, parent) {
+    if (plotId != null) {
+      var k = kind + '-' + hotelSlug(plotId);
+      var img = assetImage(k, x, y, w, h, parent);
+      if (img) return img;
+    }
+    return assetImage(kind, x, y, w, h, parent);
+  }
+
+  function building(g, x, y, w, h, roofColor, isMain, plotId) {
+    var k = isMain ? 'building-main' : 'building-wing';
+    if (tryAsset(plotId, k, x - 2, y - 2, w + 4, h + 4, g)) return;
     el('rect', { x: x, y: y + 3, width: w, height: h - 3, rx: 3,
       fill: CREAM, stroke: INK, 'stroke-width': 1.8 }, g);
     el('rect', { x: x - 1.5, y: y, width: w + 3, height: 6.5, rx: 3,
@@ -377,7 +396,9 @@
     }
   }
 
-  function pool(g, x, y) {
+  function pool(g, x, y, plotId) {
+    // tries facility-<hotel>, then facility, then pool, then vector
+    if (tryAsset(plotId, 'facility', x, y, 32, 24, g)) return;
     if (assetImage('pool', x, y, 32, 24, g)) return;
     el('rect', { x: x, y: y, width: 32, height: 24, rx: 8,
       fill: '#54c4e4', stroke: INK, 'stroke-width': 2.2 }, g);
@@ -436,9 +457,9 @@
         if (s < pl.stages) {
           var isMain = s === 0;
           building(g, slot.x + (isMain ? 0 : 3), slot.y + (isMain ? 0 : 10),
-            isMain ? 34 : 28, isMain ? 50 : 40, darken(h.color, 0.72), isMain);
+            isMain ? 34 : 28, isMain ? 50 : 40, darken(h.color, 0.72), isMain, i);
         } else {
-          pool(g, slot.x, slot.y + 24);
+          pool(g, slot.x, slot.y + 24, i);
         }
       }
     });

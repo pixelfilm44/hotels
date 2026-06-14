@@ -88,6 +88,41 @@ Other optional overrides (drop PNGs in `docs/assets/clay/` + add their keys to
 the manifest): `car-red/-blue/-green/-yellow` tokens, `building-main`,
 `building-wing`, `pool`, `awning-<colour>`, and `icon-<special>` chips.
 
+### Per-hotel buildings, extensions, and facilities
+
+Each hotel can have its own art. The renderer looks for per-hotel keys first
+and falls back to the generic keys above, then to the built-in vector art.
+Use these filenames (all transparent PNGs in `docs/assets/clay/`):
+
+| Hotel        | Main building              | Extension wing             | Facility                |
+|--------------|----------------------------|----------------------------|-------------------------|
+| Waikiri      | `building-main-waikiri.png`| `building-wing-waikiri.png`| `facility-waikiri.png`  |
+| Hábel        | `building-main-habel.png`  | `building-wing-habel.png`  | `facility-habel.png`    |
+| L'Étoile     | `building-main-letoile.png`| `building-wing-letoile.png`| `facility-letoile.png`  |
+| Royal        | `building-main-royal.png`  | `building-wing-royal.png`  | `facility-royal.png`    |
+| Fujiyama     | `building-main-fujiyama.png`| `building-wing-fujiyama.png`| `facility-fujiyama.png`|
+| Boomerang    | `building-main-boomerang.png`| `building-wing-boomerang.png`| `facility-boomerang.png`|
+| President    | `building-main-president.png`| `building-wing-president.png`| `facility-president.png`|
+| Safari       | `building-main-safari.png` | `building-wing-safari.png` | `facility-safari.png`   |
+
+Suggested PNG sizes (the renderer scales to fit):
+- **Main building**: ~200×280 px, portrait, base at the bottom edge.
+- **Extension wing**: ~170×230 px (slightly smaller than the main).
+- **Facility**: ~200×150 px, landscape. The painted facility theme per hotel is
+  whatever you choose — the in-game name comes from `gamedata.js`
+  (Beach Bar, Bazaar, Casino, Golf Course, Onsen Spa, Safari Pool, Sky Lounge,
+  Grand Lodge).
+
+Don't forget to add each filename's key (without `.png`) to
+`docs/assets/clay/manifest.json`, e.g.:
+
+```json
+["board", "building-main-royal", "building-wing-royal", "facility-royal"]
+```
+
+Mix and match freely — provide art for one hotel or all eight, with or without
+facilities; the rest will keep the vector clay art.
+
 ## Code layout
 
 - `docs/` — the static client, served by GitHub Pages and the Node server
