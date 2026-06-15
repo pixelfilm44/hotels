@@ -989,6 +989,23 @@
     if (S.screen === 'game' && S.view) { S.boardReady = false; renderGame(); }
   });
 
+  /* ---------- theme picker ---------- */
+  if (window.HotelsTheme) {
+    var sel = $('theme-select');
+    if (sel) {
+      HotelsTheme.list().forEach(function (t) {
+        var opt = document.createElement('option');
+        opt.value = t.id; opt.textContent = t.label;
+        sel.appendChild(opt);
+      });
+      sel.value = HotelsTheme.get();
+      sel.addEventListener('change', function () { HotelsTheme.set(sel.value); });
+    }
+    HotelsTheme.onChange(function () {
+      if (S.screen === 'game' && S.view) { S.boardReady = false; renderGame(); }
+    });
+  }
+
   function openRules() { $('rules-modal').classList.remove('hidden'); }
   $('btn-rules-home').addEventListener('click', openRules);
   $('btn-rules-game').addEventListener('click', openRules);
