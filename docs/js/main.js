@@ -171,7 +171,7 @@
       v.plots.forEach(function (pl, i) {
         if (!pl.owner || pl.owner === roller.id || pl.stages === 0) return;
         if (pl.entrances.indexOf(sq) < 0) return;
-        var rate = G.HOTELS[i].rates[pl.stages - 1 + (pl.facility ? 1 : 0)];
+        var rate = G.HOTELS[i].rates[pl.stages - 1 + pl.facility];
         var frac = (rate * 3.5) / Math.max(1, roller.cash);
         out.push({ sq: sq, tier: frac > 0.4 ? 3 : frac > 0.15 ? 2 : 1 });
       });
@@ -455,10 +455,12 @@
         // facility offers
         S.view.plots.forEach(function (pl, i) {
           var h = G.HOTELS[i];
-          if (pl.owner === S.playerId && pl.stages >= h.stages.length && !pl.facility) {
-            var b = btn('Add ' + h.facility.name + ' to ' + h.name + ' — ' + fmt(h.facility.cost),
+          if (pl.owner === S.playerId && pl.stages >= h.stages.length &&
+              pl.facility < h.facilities.length) {
+            var fac = h.facilities[pl.facility];
+            var b = btn('Add ' + fac.name + ' to ' + h.name + ' — ' + fmt(fac.cost),
               'small', function () { sendAction({ t: 'buyFacility', plotId: i }); }, box);
-            if (m.cash < h.facility.cost) b.disabled = true;
+            if (m.cash < fac.cost) b.disabled = true;
           }
         });
         break;
@@ -748,8 +750,11 @@
     el('h3', null, h.name + '  ' + '★'.repeat(h.stars), c);
     if (pl && pl.owner) {
       var ow = playerById(pl.owner);
+      var facList = '';
+      for (var fi = 0; fi < pl.facility; fi++)
+        facList += ' + ' + h.facilities[fi].name;
       el('p', 'prompt-sub', 'Owned by ' + ow.name + ' · ' + pl.stages + '/' +
-        h.stages.length + ' stages' + (pl.facility ? ' + ' + h.facility.name : '') +
+        h.stages.length + ' stages' + facList +
         ' · ' + pl.entrances.length + ' entrance(s)', c);
     } else {
       el('p', 'prompt-sub', 'Unowned', c);
@@ -761,13 +766,21 @@
     }
     tr('Land', fmt(h.land));
     h.stages.forEach(function (cost, i) { tr(G.STAGE_NAMES[i], fmt(cost)); });
-    tr(h.facility.name + ' (facility)', fmt(h.facility.cost));
+    h.facilities.forEach(function (fac) {
+      tr(fac.name + ' (facility)', fmt(fac.cost));
+    });
     tr('Each entrance', fmt(h.entrance));
     el('h4', null, 'Nightly rate (× die roll)', c);
     var tbl2 = el('table', 'deed-table', null, c);
     h.rates.forEach(function (rate, i) {
-      var lvl = i < h.stages.length ? (i + 1) + ' stage' + (i ? 's' : '') : 'fully built + facility';
-      var cur = pl && pl.stages && (pl.stages - 1 + (pl.facility ? 1 : 0)) === i;
+      var lvl;
+      if (i < h.stages.length) {
+        lvl = (i + 1) + ' stage' + (i ? 's' : '');
+      } else {
+        var nFac = i - h.stages.length + 1;
+        lvl = 'fully built + ' + nFac + ' facilit' + (nFac > 1 ? 'ies' : 'y');
+      }
+      var cur = pl && pl.stages && (pl.stages - 1 + pl.facility) === i;
       var r = el('tr', cur ? 'hl' : null, null, tbl2);
       el('td', null, lvl, r); el('td', 'num', fmt(rate) + '/night', r);
     });

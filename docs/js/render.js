@@ -472,7 +472,7 @@
       }
       // buildings sit inside the zone: polygon-constrained on the image board,
       // bbox grid on the vector board; each building gets its own non-overlapping slot
-      var n = pl.stages + (pl.facility ? 1 : 0);
+      var n = pl.stages + pl.facility;
       var usePoly = hasBoardImg && G.POLYS && G.POLYS[i];
       var bbox;
       if (usePoly) {

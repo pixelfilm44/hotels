@@ -14,35 +14,46 @@
   var COLORS = ['#e0413e', '#3d7be0', '#3fae49', '#e8b430'];
   var COLOR_NAMES = ['Red', 'Blue', 'Green', 'Yellow'];
 
-  var STAGE_NAMES = ['Main Building', 'East Wing', 'West Wing', 'Grand Tower'];
+  var STAGE_NAMES = ['Main Building', 'East Wing', 'West Wing', 'North Wing', 'Grand Tower'];
 
-  /* 8 original hotels, cheap -> grand.
-     rates[i] = price per night when (stagesBuilt-1 + facility) === i */
+  /* 7 hotels, cheap -> grand. `facilities` is an array (President has two);
+     `facility` aliases facilities[0] for legacy code paths.
+     rates[i] = price per night when (stagesBuilt-1 + facilitiesBuilt) === i */
+  function H(spec) {
+    spec.facilities = spec.facilities || (spec.facility ? [spec.facility] : []);
+    spec.facility = spec.facilities[0] || null;
+    return spec;
+  }
   var HOTELS = [
-    { id: 0, name: 'Waikiri',   abbr: 'WK', stars: 1, color: '#e6c878', land: 500,
-      stages: [1000, 500],            facility: { name: 'Beach Bar',   cost: 500 },
-      entrance: 500,  rates: [100, 150, 250] },
-    { id: 1, name: 'Hábel',     abbr: 'HB', stars: 1, color: '#a9764e', land: 700,
-      stages: [1200, 700],            facility: { name: 'Bazaar',      cost: 600 },
-      entrance: 500,  rates: [150, 200, 300] },
-    { id: 2, name: "L'Étoile",  abbr: 'LE', stars: 2, color: '#e0b878', land: 1000,
-      stages: [1800, 900, 900],       facility: { name: 'Casino',      cost: 800 },
-      entrance: 600,  rates: [200, 300, 400, 550] },
-    { id: 3, name: 'Royal',     abbr: 'RY', stars: 3, color: '#5fa45f', land: 1500,
-      stages: [2500, 1200, 1200],     facility: { name: 'Golf Course', cost: 1000 },
-      entrance: 700,  rates: [300, 450, 600, 800] },
-    { id: 4, name: 'Fujiyama',  abbr: 'FJ', stars: 3, color: '#d77ab5', land: 1800,
-      stages: [3000, 1500, 1500],     facility: { name: 'Onsen Spa',   cost: 1200 },
-      entrance: 800,  rates: [350, 500, 700, 950] },
-    { id: 5, name: 'Boomerang', abbr: 'BM', stars: 4, color: '#e0883e', land: 2200,
-      stages: [3500, 1800, 1800, 1800], facility: { name: 'Safari Pool', cost: 1500 },
-      entrance: 900,  rates: [400, 600, 800, 1000, 1300] },
-    { id: 6, name: 'President', abbr: 'PR', stars: 5, color: '#9a7fc8', land: 2800,
-      stages: [4500, 2200, 2200, 2200], facility: { name: 'Sky Lounge', cost: 2000 },
-      entrance: 1000, rates: [500, 750, 1000, 1300, 1700] },
-    { id: 7, name: 'Safari',    abbr: 'SF', stars: 5, color: '#cdb87f', land: 3500,
-      stages: [6000, 3000, 3000, 3000], facility: { name: 'Grand Lodge', cost: 2500 },
-      entrance: 1200, rates: [600, 900, 1200, 1600, 2100] }
+    H({ id: 0, name: 'Safari',    abbr: 'SF', stars: 1, color: '#cdb87f', land: 500,
+        stages: [1000, 500, 500],
+        facilities: [{ name: 'Swimming Pool', cost: 500 }],
+        entrance: 500,  rates: [100, 150, 250, 350] }),
+    H({ id: 1, name: 'Taj Mahal', abbr: 'TM', stars: 2, color: '#e0b878', land: 800,
+        stages: [1500, 800, 800],
+        facilities: [{ name: 'Swimming Pool', cost: 700 }],
+        entrance: 600,  rates: [150, 250, 400, 550] }),
+    H({ id: 2, name: 'Royal',     abbr: 'RY', stars: 3, color: '#5fa45f', land: 1200,
+        stages: [2200, 1100, 1100, 1100],
+        facilities: [{ name: 'Swimming Pool', cost: 1000 }],
+        entrance: 700,  rates: [250, 400, 550, 700, 950] }),
+    H({ id: 3, name: 'President', abbr: 'PR', stars: 4, color: '#9a7fc8', land: 1800,
+        stages: [2800, 1400, 1400, 1400],
+        facilities: [{ name: 'Golf Course',  cost: 1500 },
+                     { name: 'Swimming Pool', cost: 1200 }],
+        entrance: 900,  rates: [300, 500, 700, 900, 1200, 1500] }),
+    H({ id: 4, name: 'Le Grand',  abbr: 'LG', stars: 4, color: '#e0883e', land: 2200,
+        stages: [3500, 1500, 1500, 1500, 1500],
+        facilities: [{ name: 'Swimming Pool', cost: 1500 }],
+        entrance: 900,  rates: [350, 500, 700, 900, 1100, 1400] }),
+    H({ id: 5, name: 'Waikiki',   abbr: 'WK', stars: 5, color: '#e6c878', land: 2800,
+        stages: [4500, 1800, 1800, 1800, 1800],
+        facilities: [{ name: 'Swimming Pool', cost: 2000 }],
+        entrance: 1000, rates: [400, 600, 800, 1000, 1300, 1700] }),
+    H({ id: 6, name: 'Fujiyama',  abbr: 'FJ', stars: 3, color: '#d77ab5', land: 1000,
+        stages: [1800, 900, 900],
+        facilities: [{ name: 'Swimming Pool', cost: 900 }],
+        entrance: 600,  rates: [200, 300, 450, 600] })
   ];
 
   /* ---------- curved board geometry ----------
@@ -149,28 +160,26 @@
      reaches its track cells. The visible region (ownership outline + buildings)
      comes from POLYS below. Order matches HOTELS[]. */
   var PLOTS = [
-    { x: 250,  y: 160, w: 268, h: 185 },  // Waikiri
-    { x: 445,  y: 120, w: 240, h: 205 },  // Hábel
-    { x: 1180, y: 40,  w: 345, h: 200 },  // L'Étoile
-    { x: 150,  y: 415, w: 305, h: 280 },  // Royal (extended down to share squares with President)
-    { x: 1010, y: 560, w: 425, h: 245 },  // Fujiyama
-    { x: 1150, y: 820, w: 390, h: 245 },  // Boomerang
-    { x: 55,   y: 775, w: 365, h: 250 },  // President
-    { x: 694,  y: 60,  w: 180, h: 190 }   // Safari
+    { x: 250,  y: 160, w: 450, h: 185 },  // 0 Safari    (was Waikiri art; extended right to reach top-row squares + absorb the orphaned Hábel painted area)
+    { x: 1180, y: 40,  w: 345, h: 200 },  // 1 Taj Mahal (was L'Étoile art)
+    { x: 150,  y: 415, w: 305, h: 280 },  // 2 Royal     (extended down to share squares with President)
+    { x: 1010, y: 560, w: 425, h: 245 },  // 3 President (was Fujiyama art — widest, fits two facilities)
+    { x: 1150, y: 820, w: 390, h: 245 },  // 4 Le Grand  (was Boomerang art)
+    { x: 55,   y: 775, w: 365, h: 250 },  // 5 Waikiki   (was President art)
+    { x: 694,  y: 60,  w: 180, h: 190 }   // 6 Fujiyama  (was Safari art)
   ];
 
   /* Polygons tracing each painted hotel region (board px), used to outline
      ownership on the image board so it hugs the artwork instead of a box.
      Order matches HOTELS[]. */
   var POLYS = [
-    [[44,118],[58,40],[280,38],[290,160],[260,260],[120,270]],  // Waikiri (shifted left+down for more Hábel room)
-    [[300,28],[506,28],[506,260],[310,265],[300,160]],  // Hábel (expanded down to fit 3 buildings)
-    [[1180,15],[1180,180],[1248,180],[1248,106],[1293,101],[1342,115],[1406,155],[1454,201],[1526,200],[1526,15]],  // L'Étoile (added upper-left to fit main+wing+pool)
-    [[470,560],[486,456],[360,414],[271,420],[197,486],[182,543],[192,606],[330,626]],  // Royal
-    [[1170,796],[1322,726],[1322,606],[1180,564],[1014,586],[1000,666],[1030,762]],  // Fujiyama
-    [[1540,836],[1471,836],[1416,900],[1347,938],[1273,954],[1180,956],[1176,1064],[1540,1064]],  // Boomerang
-    [[396,1056],[396,940],[328,903],[181,800],[50,800],[50,1056]],  // President
-    [[746,34],[520,34],[520,190],[746,190]]  // Safari
+    [[44,118],[58,40],[506,28],[506,260],[290,265],[120,270]],  // 0 Safari (absorbs the old Hábel painted region so the ownership outline reaches the upper-right entrance squares)
+    [[1180,15],[1180,180],[1248,180],[1248,106],[1293,101],[1342,115],[1406,155],[1454,201],[1526,200],[1526,15]],  // 1 Taj Mahal
+    [[470,560],[486,456],[360,414],[271,420],[197,486],[182,543],[192,606],[330,626]],  // 2 Royal
+    [[1170,796],[1322,726],[1322,606],[1180,564],[1014,586],[1000,666],[1030,762]],  // 3 President
+    [[1540,836],[1471,836],[1416,900],[1347,938],[1273,954],[1180,956],[1176,1064],[1540,1064]],  // 4 Le Grand
+    [[396,1056],[396,940],[328,903],[181,800],[50,800],[50,1056]],  // 5 Waikiki
+    [[746,34],[520,34],[520,190],[746,190]]  // 6 Fujiyama
   ];
 
   /* Adjacency by distance: a plain square within reach of a plot can host its

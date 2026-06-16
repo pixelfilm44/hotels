@@ -32,9 +32,12 @@ function decide(game, player) {
       if (player.bot !== 'easy' || Math.random() < 0.4) {
         for (let i = 0; i < game.plots.length; i++) {
           const pl = game.plots[i], h = G.HOTELS[i];
-          if (pl.owner === player.id && pl.stages >= h.stages.length && !pl.facility &&
-              player.cash - h.facility.cost >= prof.reserve)
-            return { t: 'buyFacility', plotId: i };
+          if (pl.owner === player.id && pl.stages >= h.stages.length &&
+              pl.facility < h.facilities.length) {
+            const fac = h.facilities[pl.facility];
+            if (player.cash - fac.cost >= prof.reserve)
+              return { t: 'buyFacility', plotId: i };
+          }
         }
       }
       return { t: 'roll' };

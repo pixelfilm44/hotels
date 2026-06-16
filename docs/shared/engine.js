@@ -18,7 +18,7 @@ class Game {
       pos: 0, cash: G.START_CASH, alive: true, turns: 0
     }));
     this.plots = G.HOTELS.map(() => ({
-      owner: null, stages: 0, facility: false, entrances: [], boughtOnTurn: -1
+      owner: null, stages: 0, facility: 0, entrances: [], boughtOnTurn: -1
     }));
     this.turn = 0;
     this.phase = 'rolloff';
@@ -116,14 +116,14 @@ class Game {
   rateOf(plotId) {
     const pl = this.plots[plotId];
     if (pl.stages === 0) return 0;
-    return G.HOTELS[plotId].rates[pl.stages - 1 + (pl.facility ? 1 : 0)];
+    return G.HOTELS[plotId].rates[pl.stages - 1 + pl.facility];
   }
 
   plotValue(plotId) {
     const pl = this.plots[plotId], h = G.HOTELS[plotId];
     let v = h.land;
     for (let i = 0; i < pl.stages; i++) v += h.stages[i];
-    if (pl.facility) v += h.facility.cost;
+    for (let i = 0; i < pl.facility; i++) v += h.facilities[i].cost;
     v += pl.entrances.length * h.entrance;
     return v;
   }
@@ -165,8 +165,9 @@ class Game {
       if (pl.stages < h.stages.length) {
         if (pl.boughtOnTurn < p.turns)
           res.push({ plotId: i, what: 'stage', label: G.STAGE_NAMES[pl.stages], value: h.stages[pl.stages] });
-      } else if (!pl.facility) {
-        res.push({ plotId: i, what: 'facility', label: h.facility.name, value: h.facility.cost });
+      } else if (pl.facility < h.facilities.length) {
+        const fac = h.facilities[pl.facility];
+        res.push({ plotId: i, what: 'facility', label: fac.name, value: fac.cost });
       }
     });
     return res;
@@ -464,7 +465,7 @@ class Game {
         if (!opt) return this.err('Not an option.');
         const pl = this.plots[a.plotId];
         if (opt.what === 'stage') pl.stages++;
-        else pl.facility = true;
+        else pl.facility++;
         this.addLog(p.name + ' builds the ' + opt.label + ' at ' +
           G.HOTELS[a.plotId].name + ' for FREE.');
         this.advance(); return this.ok();
@@ -501,12 +502,13 @@ class Game {
     if (!pl || pl.owner !== p.id) return this.err('Not your hotel.');
     const h = G.HOTELS[plotId];
     if (pl.stages < h.stages.length) return this.err('Hotel must be fully built first.');
-    if (pl.facility) return this.err('Facility already built.');
-    if (p.cash < h.facility.cost) return this.err('Not enough cash.');
-    p.cash -= h.facility.cost;
-    pl.facility = true;
-    this.addLog(p.name + ' adds the ' + h.facility.name + ' to ' + h.name +
-      ' for ' + fmt(h.facility.cost) + '.');
+    if (pl.facility >= h.facilities.length) return this.err('All facilities built.');
+    const fac = h.facilities[pl.facility];
+    if (p.cash < fac.cost) return this.err('Not enough cash.');
+    p.cash -= fac.cost;
+    pl.facility++;
+    this.addLog(p.name + ' adds the ' + fac.name + ' to ' + h.name +
+      ' for ' + fmt(fac.cost) + '.');
     return this.ok();
   }
 
@@ -625,7 +627,7 @@ class Game {
     } else {
       const refund = Math.round(h.land / 2 / 50) * 50;
       seller.cash += refund;
-      pl.owner = null; pl.stages = 0; pl.facility = false;
+      pl.owner = null; pl.stages = 0; pl.facility = 0;
       pl.entrances = []; pl.boughtOnTurn = -1;
       this.addLog('No bids — the bank reclaims ' + h.name + ' and pays ' + seller.name +
         ' a token ' + fmt(refund) + '. The buildings are demolished.');
@@ -641,7 +643,7 @@ class Game {
     p.cash = 0;
     this.plots.forEach(pl => {
       if (pl.owner === p.id) {
-        pl.owner = null; pl.stages = 0; pl.facility = false;
+        pl.owner = null; pl.stages = 0; pl.facility = 0;
         pl.entrances = []; pl.boughtOnTurn = -1;
       }
     });

@@ -11,38 +11,43 @@
 
   var STORAGE_KEY = 'hotels.theme';
 
-  /* Each theme provides hotel names (length 8) and facility names (length 8),
-     in the same order as GAMEDATA.HOTELS, plus an `abbr` array of 2-letter
-     codes shown on player chips. `dir` is the asset folder under docs/assets/. */
+  /* Each theme provides hotel names (length 7) in the same order as
+     GAMEDATA.HOTELS, plus an `abbr` array of 2-letter codes. `facilities` is an
+     array of arrays — one inner array per hotel — so the hotel with two
+     facilities (President) gets two names. `dir` is the asset folder under
+     docs/assets/. Order: Safari, Taj Mahal, Royal, President, Le Grand, Waikiki, Fujiyama. */
   var THEMES = {
     normal: {
       id: 'normal',
       label: 'Classic',
       dir: 'clay',
-      hotels:     ['Waikiri', 'Hábel', "L'Étoile", 'Royal', 'Fujiyama', 'Boomerang', 'President', 'Safari'],
-      abbrs:      ['WK',      'HB',    'LE',       'RY',    'FJ',       'BM',        'PR',        'SF'],
-      facilities: ['Beach Bar', 'Bazaar', 'Casino', 'Golf Course', 'Onsen Spa', 'Safari Pool', 'Sky Lounge', 'Grand Lodge']
+      hotels:     ['Safari', 'Taj Mahal', 'Royal', 'President', 'Le Grand', 'Waikiki', 'Fujiyama'],
+      abbrs:      ['SF',     'TM',        'RY',    'PR',        'LG',       'WK',      'FJ'],
+      facilities: [['Swimming Pool'], ['Swimming Pool'], ['Swimming Pool'],
+                   ['Golf Course', 'Swimming Pool'],
+                   ['Swimming Pool'], ['Swimming Pool'], ['Swimming Pool']]
     },
     simpsons: {
       id: 'simpsons',
       label: 'The Simpsons',
       dir: 'simpsons',
-      hotels:     ["Krusty Burger", "Moe's Tavern", 'Aztec Theater', 'Retirement Castle',
-                   'Burns Manor', 'Kwik-E-Mart', 'Nuclear Plant', 'Mt. Springfield'],
-      abbrs:      ['KB', 'MT', 'AZ', 'RC', 'BM', 'KE', 'NP', 'MS'],
-      facilities: ['Krusty Klown Show', 'Duff Brewery Tour', 'Casino Royale Springfield',
-                   "Sir Putt-A-Lot's", 'Hounds of Burns', 'Squishee Bar',
-                   'Cooling Tower Lounge', "Itchy & Scratchy Land"]
+      hotels:     ["Krusty Burger", "Moe's Tavern", 'Retirement Castle',
+                   'Burns Manor', 'Kwik-E-Mart', 'Nuclear Plant', 'Aztec Theater'],
+      abbrs:      ['KB', 'MT', 'RC', 'BM', 'KE', 'NP', 'AZ'],
+      facilities: [['Duff Pool'], ['Squishee Bar'], ["Sir Putt-A-Lot's"],
+                   ['Hounds of Burns', 'Money Pool'],
+                   ['Krusty Klown Show'], ["Itchy & Scratchy Land"], ['Cooling Tower Lounge']]
     },
     starwars: {
       id: 'starwars',
       label: 'Star Wars',
       dir: 'starwars',
-      hotels:     ['Mos Eisley Cantina', 'Jawa Sandcrawler', 'Cloud City', 'Theed Palace',
-                   'Jedi Temple', "Jabba's Palace", 'Imperial Palace', 'Death Star'],
-      abbrs:      ['ME', 'JS', 'CC', 'TP', 'JT', 'JP', 'IP', 'DS'],
-      facilities: ['Smugglers Lounge', 'Scrap Bazaar', 'Tibanna Spa', 'Naboo Gardens',
-                   'Meditation Chamber', 'Rancor Pit', 'Throne Room', 'Superlaser Deck']
+      hotels:     ['Mos Eisley Cantina', 'Cloud City', 'Theed Palace',
+                   'Imperial Palace', "Jabba's Palace", 'Death Star', 'Jedi Temple'],
+      abbrs:      ['ME', 'CC', 'TP', 'IP', 'JP', 'DS', 'JT'],
+      facilities: [['Cantina Pool'], ['Tibanna Spa'], ['Naboo Gardens'],
+                   ['Throne Course', 'Bacta Pool'],
+                   ['Rancor Pit'], ['Superlaser Deck'], ['Meditation Chamber']]
     }
   };
 
@@ -63,7 +68,11 @@
     GAMEDATA.HOTELS.forEach(function (h, i) {
       h.name = t.hotels[i];
       h.abbr = t.abbrs[i];
-      if (h.facility) h.facility.name = t.facilities[i];
+      var facNames = t.facilities[i] || [];
+      (h.facilities || []).forEach(function (fac, fi) {
+        if (facNames[fi]) fac.name = facNames[fi];
+      });
+      if (h.facility && h.facilities && h.facilities[0]) h.facility = h.facilities[0];
     });
   }
 
