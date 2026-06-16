@@ -269,13 +269,28 @@
     }
 
     // plots: vector fill+label, or invisible click target over the image
+    var LABEL_DY = { 1: -40, 4: 40 };  // Taj Mahal up, Le Grand down
     G.PLOTS.forEach(function (pl, i) {
       var h = G.HOTELS[i];
       var pcx = pl.x + pl.w / 2;
       var g = el('g', { 'data-plot': i, cursor: 'pointer' }, gPlotsBase);
       if (hasBoard) {
-        el('rect', { x: pl.x, y: pl.y, width: pl.w, height: pl.h, rx: 13,
-          fill: 'transparent' }, g);
+        var poly = G.POLYS && G.POLYS[i];
+        if (poly) {
+          var smoothPts = poly.map(function (p) { return { x: p[0], y: p[1] }; });
+          var d = loopPath(smoothPts);
+          el('path', { d: d, fill: h.color, opacity: 0.18 }, g);
+          el('path', { d: d, fill: 'none', stroke: h.color,
+            'stroke-width': 3, 'stroke-linejoin': 'round', opacity: 0.5 }, g);
+          var cx = poly.reduce(function (s, p) { return s + p[0]; }, 0) / poly.length;
+          var cy = poly.reduce(function (s, p) { return s + p[1]; }, 0) / poly.length;
+          cy += LABEL_DY[i] || 0;
+          txt(g, cx, cy + 6, h.name.toUpperCase(), 22,
+            { fill: '#fff', 'font-weight': 'bold', 'letter-spacing': '1', filter: 'url(#fShadow)' });
+        } else {
+          el('rect', { x: pl.x, y: pl.y, width: pl.w, height: pl.h, rx: 13,
+            fill: 'transparent' }, g);
+        }
       } else {
         el('rect', { x: pl.x, y: pl.y, width: pl.w, height: pl.h, rx: 13,
           fill: h.color, stroke: INK, 'stroke-width': 2.4 }, g);
@@ -455,11 +470,12 @@
         var poly = G.POLYS && G.POLYS[i];
         if (hasBoardImg && poly) {
           // hug the painted region outline
-          var pts = poly.map(function (p) { return p[0] + ',' + p[1]; }).join(' ');
-          el('polygon', { points: pts, fill: oc, opacity: 0.16 }, g);
-          el('polygon', { points: pts, fill: 'none', stroke: oc, 'stroke-width': 6,
+          var smoothPts = poly.map(function (p) { return { x: p[0], y: p[1] }; });
+          var d = loopPath(smoothPts);
+          el('path', { d: d, fill: oc, opacity: 0.16 }, g);
+          el('path', { d: d, fill: 'none', stroke: oc, 'stroke-width': 6,
             'stroke-linejoin': 'round', filter: 'url(#fShadow)' }, g);
-          el('polygon', { points: pts, fill: 'none', stroke: '#fff', 'stroke-width': 1.5,
+          el('path', { d: d, fill: 'none', stroke: '#fff', 'stroke-width': 1.5,
             'stroke-linejoin': 'round', opacity: 0.5 }, g);
           el('circle', { cx: poly[0][0], cy: poly[0][1], r: 11,
             fill: oc, stroke: INK, 'stroke-width': 2.4 }, g);
