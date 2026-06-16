@@ -69,14 +69,16 @@
      clearance). Falls back to the last placed position if no room is found. */
   function placeBuildings(poly, bbox, items) {
     var placed = [];
-    var STEP = 8, GAP = 8;
-    for (var bi = 0; bi < items.length; bi++) {
-      var bw = items[bi].w, bh = items[bi].h;
-      var found = null;
-      scan:
-      for (var yy = bbox.y + 4; yy + bh <= bbox.y + bbox.h - 2; yy += STEP) {
-        for (var xx = bbox.x + 4; xx + bw <= bbox.x + bbox.w - 2; xx += STEP) {
-          if (poly) {
+    var STEP = 6;
+    function scanFor(bw, bh, usePoly, gap, allowOverflow) {
+      // When allowOverflow is true, the building's top-left corner may sit
+      // anywhere up to (bbox right/bottom - 2); the building itself can then
+      // extend past that edge by up to bw/bh pixels.
+      var maxYStart = bbox.y + bbox.h - 2 - (allowOverflow ? 0 : bh);
+      var maxXStart = bbox.x + bbox.w - 2 - (allowOverflow ? 0 : bw);
+      for (var yy = bbox.y + 4; yy <= maxYStart; yy += STEP) {
+        for (var xx = bbox.x + 4; xx <= maxXStart; xx += STEP) {
+          if (usePoly && poly) {
             var cx = xx + bw / 2;
             if (!pointInPoly(cx,      yy + bh / 2,  poly)) continue;
             if (!pointInPoly(cx,      yy + bh - 2,  poly)) continue;
@@ -88,15 +90,23 @@
           var ok = true;
           for (var pi = 0; pi < placed.length; pi++) {
             var p = placed[pi];
-            if (xx < p.x + p.w + GAP && xx + bw + GAP > p.x &&
-                yy < p.y + p.h + GAP && yy + bh + GAP > p.y) { ok = false; break; }
+            if (xx < p.x + p.w + gap && xx + bw + gap > p.x &&
+                yy < p.y + p.h + gap && yy + bh + gap > p.y) { ok = false; break; }
           }
-          if (ok) { found = { x: xx, y: yy }; break scan; }
+          if (ok) return { x: xx, y: yy };
         }
       }
-      var pos = found || (placed.length
-        ? { x: placed[placed.length - 1].x, y: placed[placed.length - 1].y }
-        : { x: bbox.x + 4, y: bbox.y + 4 });
+      return null;
+    }
+    for (var bi = 0; bi < items.length; bi++) {
+      var bw = items[bi].w, bh = items[bi].h;
+      // Try progressively looser constraints rather than ever stacking on top
+      // of a previously placed building (which makes extensions look like one).
+      var found = scanFor(bw, bh, true,  8, false)
+              || scanFor(bw, bh, true,  4, false)
+              || scanFor(bw, bh, false, 4, false)
+              || scanFor(bw, bh, false, 2, true);
+      var pos = found || { x: bbox.x + 4, y: bbox.y + 4 };
       placed.push({ x: pos.x, y: pos.y, w: bw, h: bh });
     }
     return placed;
@@ -475,14 +485,19 @@
         bbox = { x: geo.x + 12, y: geo.y + 40, w: geo.w - 24, h: geo.h - 48 };
       }
       var items = [];
+      // Note: building() draws with a 2px expansion on every side (w+4, h+4)
+      // for stroke + shadow. Reserve the drawn footprint here so adjacent
+      // wings can't visually touch even when the polygon is tight.
       for (var si = 0; si < n; si++)
-        items.push(si < pl.stages ? (si === 0 ? { w: 82, h: 120 } : { w: 62, h: 88 }) : { w: 64, h: 48 });
+        items.push(si < pl.stages ? (si === 0 ? { w: 86, h: 124 } : { w: 66, h: 92 }) : { w: 64, h: 48 });
       var positions = placeBuildings(usePoly ? G.POLYS[i] : null, bbox, items);
       for (var s = 0; s < n; s++) {
         var pos = positions[s];
         if (s < pl.stages) {
           var isMain = s === 0;
-          building(g, pos.x, pos.y, isMain ? 82 : 62, isMain ? 120 : 88, darken(h.color, 0.72), isMain, i);
+          // building() expands by 2px on every side; offset by 2 so the
+          // drawn footprint matches the reserved cell.
+          building(g, pos.x + 2, pos.y + 2, isMain ? 82 : 62, isMain ? 120 : 88, darken(h.color, 0.72), isMain, i);
         } else {
           pool(g, pos.x, pos.y, i);
         }
