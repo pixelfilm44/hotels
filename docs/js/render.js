@@ -535,19 +535,20 @@
       var pcx = geo.x + geo.w / 2, pcy = geo.y + geo.h / 2;
       pl.entrances.forEach(function (sq) {
         var pos = G.TRACK[sq];
-        // Push the awning from the track square center to the inner edge of
-        // the path (the side nearest the property), so it hugs the road rather
-        // than sitting on top of it.
-        var dx = pcx - pos.x, dy = pcy - pos.y;
-        var len = Math.sqrt(dx * dx + dy * dy) || 1;
-        var awnH = 16;
-        var off = C / 2 + awnH / 2 - 1;
-        var ex = pos.x + dx / len * off, ey = pos.y + dy / len * off;
-        // Orient the awning along the local track tangent so it lies parallel
-        // to the path next to it, not skewed toward the plot's centroid.
+        // Track tangent (direction the path runs through this square).
         var prev = G.TRACK[(sq - 1 + G.TRACK.length) % G.TRACK.length];
         var next = G.TRACK[(sq + 1) % G.TRACK.length];
         var tdx = next.x - prev.x, tdy = next.y - prev.y;
+        var tlen = Math.sqrt(tdx * tdx + tdy * tdy) || 1;
+        tdx /= tlen; tdy /= tlen;
+        // Perpendicular to the tangent, flipped to point toward the plot.
+        var nx = -tdy, ny = tdx;
+        if (nx * (pcx - pos.x) + ny * (pcy - pos.y) < 0) { nx = -nx; ny = -ny; }
+        // Slide the awning out by half a cell + half the awning so it sits
+        // flush against the inner edge of the path, parallel to the tangent.
+        var awnH = 16;
+        var off = C / 2 + awnH / 2 - 1;
+        var ex = pos.x + nx * off, ey = pos.y + ny * off;
         var ang = Math.atan2(tdy, tdx) * 180 / Math.PI;
         var g = el('g', { 'pointer-events': 'none', filter: 'url(#fShadow)' }, gEntrances);
         awning(g, ex, ey, ang, colorOf[pl.owner] || '#999');
