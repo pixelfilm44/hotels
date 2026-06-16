@@ -49,6 +49,23 @@ function decide(game, player) {
       return { t: 'buy', yes: afford && wants };
     }
 
+    case 'choose-land': {
+      // Prefer a compulsory (half-price) grab; otherwise the plot with the
+      // highest top nightly rate per dollar of land cost.
+      const compulsory = pd.options.find(o => o.compulsory &&
+        player.cash - o.price >= prof.reserve / 2);
+      if (compulsory) return { t: 'choose', plotId: compulsory.plotId };
+      if (Math.random() >= prof.buyChance) return { t: 'skip' };
+      const afford = pd.options.filter(o => player.cash - o.price >= prof.reserve);
+      if (!afford.length) return { t: 'skip' };
+      const best = afford.slice().sort((a, b) => {
+        const ha = G.HOTELS[a.plotId], hb = G.HOTELS[b.plotId];
+        return (hb.rates[hb.rates.length - 1] / hb.land) -
+          (ha.rates[ha.rates.length - 1] / ha.land);
+      })[0];
+      return { t: 'choose', plotId: best.plotId };
+    }
+
     case 'choose-build': {
       // Score each site by rate gain per dollar; build as many stages as is safe.
       let best = null;

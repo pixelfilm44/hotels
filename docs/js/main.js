@@ -415,6 +415,7 @@
   var WAIT_DESC = {
     'order-roll': 'rolling for turn order',
     'roll': 'rolling the die', 'buy-land': 'eyeing a land deal',
+    'choose-land': 'eyeing a land deal',
     'choose-build': 'choosing what to build', 'permission-roll': 'at the planning office',
     'buy-entrances': 'shopping for entrances', 'free-entrance': 'placing a free entrance',
     'free-build': 'claiming a free build', 'stay-roll': 'checking in to a hotel',
@@ -476,6 +477,22 @@
         btn('Buy', 'primary', function () { sendAction({ t: 'buy', yes: true }); }, row1);
         btn('Pass', '', function () { sendAction({ t: 'buy', yes: false }); }, row1);
         btn('ℹ️ View details', 'small', function () { showDeed(pd.plotId); }, row1);
+        break;
+      }
+      case 'choose-land': {
+        el('div', 'prompt-title', 'Two properties meet here — which land?', box);
+        pd.options.forEach(function (o) {
+          var h3 = G.HOTELS[o.plotId];
+          var sec = el('div', 'build-site', null, box);
+          el('div', 'bs-name', h3.name + ' ' + '★'.repeat(h3.stars) +
+            (o.compulsory ? ' (compulsory, half price)' : ''), sec);
+          var row = el('div', 'btn-row', null, sec);
+          btn('Buy for ' + fmt(o.price), 'small', function () {
+            sendAction({ t: 'choose', plotId: o.plotId });
+          }, row);
+          btn('ℹ️ Details', 'small', function () { showDeed(o.plotId); }, row);
+        });
+        btn('Skip both', '', function () { sendAction({ t: 'skip' }); }, box);
         break;
       }
       case 'choose-build': {

@@ -157,6 +157,23 @@ class Game {
     return res;
   }
 
+  /* Land deals available to p across a set of plots (one square can border two
+     facing plots — both unowned, or one ownable via compulsory purchase). */
+  landOptions(p, plotIds) {
+    const res = [];
+    (plotIds || []).forEach(plotId => {
+      if (plotId === undefined) return;
+      const pl = this.plots[plotId], h = G.HOTELS[plotId];
+      if (pl.owner === null) {
+        if (p.cash >= h.land) res.push({ plotId, price: h.land, toOwner: null });
+      } else if (pl.owner !== p.id && pl.stages === 0) {
+        const price = Math.round(h.land / 2 / 50) * 50;
+        if (p.cash >= price) res.push({ plotId, price, toOwner: pl.owner, compulsory: true });
+      }
+    });
+    return res;
+  }
+
   freeBuildOptions(p) {
     const res = [];
     this.plots.forEach((pl, i) => {
@@ -219,6 +236,17 @@ class Game {
         if (item.toOwner !== null && (pl.owner !== item.toOwner || pl.stages > 0)) return null;
         return { type: 'buy-land', player: p.id, plotId: item.plotId, price: item.price,
                  toOwner: item.toOwner, compulsory: !!item.compulsory };
+      }
+      case 'choose-land': {
+        if (this.boughtDeed) return null;
+        const options = this.landOptions(p, item.plotIds);
+        if (!options.length) return null;
+        if (options.length === 1) {
+          const o = options[0];
+          return { type: 'buy-land', player: p.id, plotId: o.plotId, price: o.price,
+                   toOwner: o.toOwner, compulsory: !!o.compulsory };
+        }
+        return { type: 'choose-land', player: p.id, options };
       }
       case 'choose-build': {
         const sites = this.buildableSites(p);
@@ -287,17 +315,10 @@ class Game {
     }
     const t = G.SPECIALS[sq];
     if (!t) {
-      const plotId = G.SQUARE_PLOT[sq];
-      if (plotId === undefined || this.boughtDeed) return;
-      const pl = this.plots[plotId], h = G.HOTELS[plotId];
-      if (pl.owner === null) {
-        if (p.cash >= h.land)
-          this.queue.push({ type: 'buy-land', plotId, price: h.land, toOwner: null });
-      } else if (pl.owner !== p.id && pl.stages === 0) {
-        const price = Math.round(h.land / 2 / 50) * 50;
-        if (p.cash >= price)
-          this.queue.push({ type: 'buy-land', plotId, price, toOwner: pl.owner, compulsory: true });
-      }
+      if (this.boughtDeed) return;
+      const plotIds = G.SHARED[sq] ||
+        (G.SQUARE_PLOT[sq] !== undefined ? [G.SQUARE_PLOT[sq]] : []);
+      if (plotIds.length) this.queue.push({ type: 'choose-land', plotIds });
       return;
     }
     if (t === 'permission') {
@@ -369,6 +390,18 @@ class Game {
         pl.boughtOnTurn = p.turns;
         this.boughtDeed = true;
         this.advance(); return this.ok();
+      }
+
+      case 'choose-land': {
+        if (a.t === 'skip') {
+          this.addLog(p.name + ' passes on this corner.');
+          this.advance(); return this.ok();
+        }
+        if (a.t !== 'choose') return this.err('Choose a property or skip.');
+        const opt = pd.options.find(o => o.plotId === a.plotId);
+        if (!opt) return this.err('Not one of the offered plots.');
+        this.pending = Object.assign({ type: 'buy-land', player: p.id }, opt);
+        return this.ok();
       }
 
       case 'choose-build': {
