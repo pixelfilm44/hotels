@@ -286,7 +286,7 @@
           var cy = poly.reduce(function (s, p) { return s + p[1]; }, 0) / poly.length;
           cy += LABEL_DY[i] || 0;
           txt(g, cx, cy + 6, h.name.toUpperCase(), 22,
-            { fill: '#fff', 'font-weight': 'bold', 'letter-spacing': '1', filter: 'url(#fShadow)' });
+            { id: 'plot-label-' + i, fill: '#fff', 'font-weight': 'bold', 'letter-spacing': '1', filter: 'url(#fShadow)' });
         } else {
           el('rect', { x: pl.x, y: pl.y, width: pl.w, height: pl.h, rx: 13,
             fill: 'transparent' }, g);
@@ -464,6 +464,8 @@
 
     view.plots.forEach(function (pl, i) {
       var geo = G.PLOTS[i], h = G.HOTELS[i];
+      var label = svg.getElementById('plot-label-' + i);
+      if (label) label.style.display = pl.stages > 0 ? 'none' : '';
       var g = el('g', { 'pointer-events': 'none' }, gPlotsDyn);
       if (pl.owner) {
         var oc = colorOf[pl.owner] || '#fff';
