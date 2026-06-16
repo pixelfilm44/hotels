@@ -400,8 +400,23 @@ class Game {
         if (a.t !== 'choose') return this.err('Choose a property or skip.');
         const opt = pd.options.find(o => o.plotId === a.plotId);
         if (!opt) return this.err('Not one of the offered plots.');
-        this.pending = Object.assign({ type: 'buy-land', player: p.id }, opt);
-        return this.ok();
+        if (this.boughtDeed) return this.err('Only one deed per turn.');
+        if (p.cash < opt.price) return this.err('Not enough cash.');
+        p.cash -= opt.price;
+        const cpl = this.plots[opt.plotId];
+        if (opt.toOwner !== null) {
+          const prev = this.byId(opt.toOwner);
+          prev.cash += opt.price;
+          this.addLog(p.name + ' compulsorily purchases ' + G.HOTELS[opt.plotId].name +
+            ' from ' + prev.name + ' for ' + fmt(opt.price) + ' (half price).');
+        } else {
+          this.addLog(p.name + ' buys the land for ' + G.HOTELS[opt.plotId].name +
+            ' for ' + fmt(opt.price) + '.');
+        }
+        cpl.owner = p.id;
+        cpl.boughtOnTurn = p.turns;
+        this.boughtDeed = true;
+        this.advance(); return this.ok();
       }
 
       case 'choose-build': {

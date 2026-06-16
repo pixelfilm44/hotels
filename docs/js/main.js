@@ -48,6 +48,7 @@
   }
   function sendAction(a) {
     if (a.t === 'buy' && a.yes) Sound.play('buy');
+    else if (a.t === 'choose') Sound.play('buy');
     else if (a.t === 'entrance') Sound.play('buy');
     else if (a.t === 'buyFacility' || a.t === 'freeBuild') Sound.play('build');
     S.conn.send({ t: 'action', as: S.playerId, action: a });

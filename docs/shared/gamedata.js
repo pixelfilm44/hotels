@@ -171,7 +171,7 @@
     { x: 1150, y: 820, w: 390, h: 245 },  // 4 Le Grand  (was Boomerang art)
     { x: 55,   y: 775, w: 365, h: 250 },  // 5 Waikiki   (was President art)
     { x: 694,  y: 60,  w: 180, h: 190 },  // 6 Fujiyama  (was Safari art)
-    { x: 1180, y: 250, w: 300, h: 170 }   // 7 Boomerang (inside the loop, south of Taj Mahal — shares track squares with TM)
+    { x: 1060, y: 250, w: 300, h: 200 }   // 7 Boomerang (inside the loop, south of Taj Mahal — shares track squares with TM)
   ];
 
   /* Polygons tracing each painted hotel region (board px), used to outline
@@ -185,7 +185,7 @@
     [[1540,836],[1471,836],[1416,900],[1347,938],[1273,954],[1180,956],[1176,1064],[1540,1064]],  // 4 Le Grand
     [[396,1056],[396,940],[328,903],[181,800],[50,800],[50,1056]],  // 5 Waikiki
     [[746,34],[520,34],[520,190],[746,190]],  // 6 Fujiyama
-    [[1180,250],[1480,250],[1480,420],[1180,420]]  // 7 Boomerang
+    [[1060,300],[1360,300],[1360,460],[1060,460]]  // 7 Boomerang
   ];
 
   /* Adjacency by distance: a plain square within reach of a plot can host its
