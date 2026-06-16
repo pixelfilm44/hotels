@@ -53,7 +53,11 @@
     H({ id: 6, name: 'Fujiyama',  abbr: 'FJ', stars: 3, color: '#d77ab5', land: 1000,
         stages: [1800, 900, 900],
         facilities: [{ name: 'Swimming Pool', cost: 900 }],
-        entrance: 600,  rates: [200, 300, 450, 600] })
+        entrance: 600,  rates: [200, 300, 450, 600] }),
+    H({ id: 7, name: 'Boomerang', abbr: 'BM', stars: 2, color: '#7fb5d7', land: 2000,
+        stages: [2000],
+        facilities: [{ name: 'Swimming Pool', cost: 250 }],
+        entrance: 150,  rates: [100, 400] })
   ];
 
   /* ---------- curved board geometry ----------
@@ -166,7 +170,8 @@
     { x: 1010, y: 560, w: 425, h: 245 },  // 3 President (was Fujiyama art — widest, fits two facilities)
     { x: 1150, y: 820, w: 390, h: 245 },  // 4 Le Grand  (was Boomerang art)
     { x: 55,   y: 775, w: 365, h: 250 },  // 5 Waikiki   (was President art)
-    { x: 694,  y: 60,  w: 180, h: 190 }   // 6 Fujiyama  (was Safari art)
+    { x: 694,  y: 60,  w: 180, h: 190 },  // 6 Fujiyama  (was Safari art)
+    { x: 1180, y: 340, w: 320, h: 180 }   // 7 Boomerang (inside the loop, south of Taj Mahal — shares track squares with TM)
   ];
 
   /* Polygons tracing each painted hotel region (board px), used to outline
@@ -179,7 +184,8 @@
     [[1170,796],[1322,726],[1322,606],[1180,564],[1014,586],[1000,666],[1030,762]],  // 3 President
     [[1540,836],[1471,836],[1416,900],[1347,938],[1273,954],[1180,956],[1176,1064],[1540,1064]],  // 4 Le Grand
     [[396,1056],[396,940],[328,903],[181,800],[50,800],[50,1056]],  // 5 Waikiki
-    [[746,34],[520,34],[520,190],[746,190]]  // 6 Fujiyama
+    [[746,34],[520,34],[520,190],[746,190]],  // 6 Fujiyama
+    [[1180,340],[1500,340],[1500,520],[1180,520]]  // 7 Boomerang
   ];
 
   /* Adjacency by distance: a plain square within reach of a plot can host its

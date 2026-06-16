@@ -888,6 +888,12 @@
     if (pa && !na) Sound.play('gavel');
     if (na && (!pa || (na.high && (!pa.high || pa.high.amount !== na.high.amount))))
       { if (na.high) Sound.play('bid'); }
+    // build by a non-local player (local builds already chime via sendAction / perm modal)
+    var npm = v.lastPerm;
+    if (npm && npm.built && npm.seq && npm.seq !== S.permSeqSeen &&
+        localHumans().indexOf(npm.player) < 0) {
+      Sound.play(npm.face === 'free' ? 'free' : npm.face === 'double' ? 'double' : 'build');
+    }
   }
 
   /* ---------- planning permission modal ---------- */
