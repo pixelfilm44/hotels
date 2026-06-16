@@ -488,8 +488,10 @@
       // Note: building() draws with a 2px expansion on every side (w+4, h+4)
       // for stroke + shadow. Reserve the drawn footprint here so adjacent
       // wings can't visually touch even when the polygon is tight.
+      var hs = hotelSlug(i);
+      var landscape = hs === 'tajmahal' || hs === 'legrand' || hs === 'fujiyama';
       for (var si = 0; si < n; si++)
-        items.push(si < pl.stages ? (si === 0 ? { w: 86, h: 124 } : { w: 66, h: 92 }) : { w: 64, h: 48 });
+        items.push(si < pl.stages ? (si === 0 ? (landscape ? { w: 124, h: 90 } : { w: 86, h: 124 }) : { w: 66, h: 92 }) : { w: 64, h: 48 });
       var positions = placeBuildings(usePoly ? G.POLYS[i] : null, bbox, items);
       for (var s = 0; s < n; s++) {
         var pos = positions[s];
@@ -497,7 +499,7 @@
           var isMain = s === 0;
           // building() expands by 2px on every side; offset by 2 so the
           // drawn footprint matches the reserved cell.
-          building(g, pos.x + 2, pos.y + 2, isMain ? 82 : 62, isMain ? 120 : 88, darken(h.color, 0.72), isMain, i);
+          building(g, pos.x + 2, pos.y + 2, isMain ? (landscape ? 120 : 82) : 62, isMain ? (landscape ? 86 : 120) : 88, darken(h.color, 0.72), isMain, i);
         } else {
           pool(g, pos.x, pos.y, i);
         }

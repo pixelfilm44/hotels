@@ -1,1 +1,9 @@
-["board", "building-main", "building-wing", "pool"]
+["board", "building-main", "building-wing", "pool",
+ "building-main-boomerang", "building-main-fujiyama", "building-main-legrand",
+ "building-main-president", "building-main-royal", "building-main-safari",
+ "building-main-tajmahal", "building-main-waikiki",
+ "building-wing-boomerang", "building-wing-fujiyama", "building-wing-legrand",
+ "building-wing-president", "building-wing-royal", "building-wing-safari",
+ "building-wing-tajmahal", "building-wing-waikiki",
+ "facility-boomerang", "facility-fujiyama", "facility-legrand",
+ "facility-president", "facility-safari", "facility-tajmahal", "facility-waikiki"]
