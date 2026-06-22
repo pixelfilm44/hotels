@@ -692,18 +692,6 @@
         el('p', 'prompt-sub', 'Your property is under the hammer…', c);
     }
 
-    // fast-forward: when only bots are left to bid, let any human settle it now
-    var minBid = pd.high ? pd.high.amount + 50 : 50;
-    var humanCanStillBid = v.players.some(function (p) {
-      return !p.bot && p.alive && p.id !== pd.seller &&
-        (!pd.high || pd.high.player !== p.id) &&
-        pd.passed.indexOf(p.id) < 0 && p.cash >= minBid;
-    });
-    if (!humanCanStillBid) {
-      btn('⏩ Resolve now', 'small', function () {
-        sendAction({ t: 'ffAuction' });
-      }, el('div', 'btn-row center', null, c));
-    }
   }
 
   /* ---------- end-of-game net worth chart ---------- */

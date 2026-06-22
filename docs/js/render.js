@@ -279,9 +279,7 @@
         if (poly) {
           var smoothPts = poly.map(function (p) { return { x: p[0], y: p[1] }; });
           var d = loopPath(smoothPts);
-          el('path', { d: d, fill: h.color, opacity: 0.18 }, g);
-          el('path', { d: d, fill: 'none', stroke: h.color,
-            'stroke-width': 3, 'stroke-linejoin': 'round', opacity: 0.5 }, g);
+          el('path', { d: d, fill: 'transparent' }, g);
           var cx = poly.reduce(function (s, p) { return s + p[0]; }, 0) / poly.length;
           var cy = poly.reduce(function (s, p) { return s + p[1]; }, 0) / poly.length;
           cy += LABEL_DY[i] || 0;
